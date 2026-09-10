@@ -12,26 +12,30 @@ npm ci
 npm run dev
 npm run build
 npm run preview
-node --experimental-strip-types --test scripts/row.test.ts
+node --experimental-strip-types --test scripts/row.test.ts scripts/query-guide.test.ts
 ```
 
 Default dev/preview: http://127.0.0.1:3083. The current review preview uses 3085.
 Strict port selection; do not kill other processes to obtain a port.
 
-The sample consumes `vendor/postgres-to-entity-0.3.0.tgz`; it does not import sibling source.
+The sample consumes `vendor/postgres-to-entity-0.3.1.tgz`; it does not import sibling source.
 SDK 0.8.0 and viem are confined to the optional wallet demo. The npm model engine is offline.
 
 ## Workflow
 
 1. Paste PostgreSQL CREATE TABLE definitions or open a .sql file. Read the schema.
-2. Choose payload, queryable attribute or exclusion per source field. Attribute query
-   intentions use plain-language examples and an official documentation link. Arrays
+2. Choose payload, queryable attribute or exclusion per source field. Destination changes
+   refresh the mapping automatically. Expand Available filters for every supported predicate
+   for the mapped type, explanations and SDK examples; no operator is selected or enabled.
+   Numeric attributes support equality and ordered comparisons; strings equality and prefix;
+   booleans equality. AND/OR/NOT compose conditions. NOT includes missing attributes.
+   Unsupported ne/exists/hasType and string pattern features are labelled unavailable. Arrays
    stay in payload in this beginner UI; array query projections remain an advanced agent task.
 3. Choose Connected wallet or Another wallet (example only), and a local calendar date/time.
    Another wallet cannot deploy; it remains useful for explaining a proposed model.
-4. Review public fields, build the model, compare destinations, inspect the complete entity
+4. Build the model, compare destinations, inspect the complete entity
    illustration and payload JSON. The final collapsed handoff copies/downloads the model.
-5. Optionally review/edit one JSON source row, confirm its public values, connect your injected
+5. Optionally review/edit one JSON source row, confirm its public fields and values together, connect your injected
    EVM wallet and click Deploy to Arkiv. The wallet confirms creation on Tiramisu.
 
 Schema JSON/MongoDB imports are not accepted. A JSON **row editor** at the final step contains
@@ -69,11 +73,18 @@ Inputs/account/network changes invalidate reviewed data. A final guard checks th
 sending. Rejection clears consent. A submitted transaction with uncertain receipt is retained
 with its explorer and a Check confirmation again action; checking does not resubmit it.
 
-Disabled deployment explains the pending requirement immediately above the button. A review
-action focuses the relevant input without accepting consent. Public-field review in step 02
-must be included in a rebuilt model, separately from the final row-value confirmation.
-Rebuilding the same entity mapping preserves edited row values and resets confirmation.
+Disabled deployment lists concrete model blockers or the offending row value immediately above
+the button, with a review action. Unsupported requested mappings remain labelled blocked in the
+comparison instead of appearing to move into payload. One final confirmation covers fields and
+row values for the optional write. The exported model keeps its privacy decision for the agent;
+the demo never represents that local confirmation as global approval for future rows.
+Changing destinations preserves edited values by source field and resets confirmation.
 Changing inputs clears old status messages and collapses an earlier receipt under Previous creation.
+
+Selecting a text attribute explicitly adds an `attributeLimits` contract of 128 UTF-8 bytes.
+The UI displays it at the field and validates actual byte length before sending. Values are
+never truncated or hashed. PostgreSQL source types/bounds remain unchanged. Moving the field
+back to payload removes that attribute limit. Payload and transaction limits still apply.
 
 Creation displays transaction/entity Block Explorer links and a Data Explorer entity-key query.
 The latter opens the query; select Tiramisu and Execute. A direct SDK read also compares key,

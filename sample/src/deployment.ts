@@ -26,6 +26,7 @@ export function initDeployment(){
  let account:Address|undefined;
  let entity:EntityDesign|undefined,model:EntityModel|undefined,policy:{owner:string;expiration:string}|undefined;
  let fresh=false,busy=false,epoch=0;let submittedHash:string|undefined;
+ const editedRows=new Map<string,Record<string,unknown>>();
  const connect=$<HTMLButtonElement>('connect-wallet'),deploy=$<HTMLButtonElement>('deploy');
  const row=$<HTMLTextAreaElement>('entity-row'),consent=$<HTMLInputElement>('deploy-consent');
  const status=$('wallet-status'),eligibility=$('deploy-eligibility'),preview=$('transaction-preview');
@@ -62,13 +63,12 @@ export function initDeployment(){
     const prepared=prepareRow(entity,model,row.value);preview.textContent=JSON.stringify(prepared.display,null,2);
     if(policy.owner!=='Connected wallet'){reason='Another wallet is an example only. Choose Connected wallet and rebuild to deploy.';review('refine','Review ownership');}
     else if(new Date(policy.expiration).getTime()<=Date.now()||!Number.isFinite(new Date(policy.expiration).getTime())){reason='Choose a future expiration and rebuild.';review('refine','Review expiration');}
-    else if(model.decisions.some(d=>d.code==='privacy')){reason='The field review is missing from this model. In step 02, check “I reviewed which fields will be public”, then build the model again.';review('privacy','Review public fields');}
-    else if(model.decisions.some(d=>!['cross-entity-query','constraints'].includes(d.code))){reason='Resolve the model decisions before deploying: '+model.decisions.filter(d=>!['cross-entity-query','constraints'].includes(d.code)).map(d=>d.message).join(' ');review('issues','Review model decisions');}
+    else if(model.decisions.some(d=>!['privacy','attribute-limit','cross-entity-query','constraints'].includes(d.code))){reason='Resolve the model decisions before deploying: '+model.decisions.filter(d=>!['privacy','attribute-limit','cross-entity-query','constraints'].includes(d.code)).map(d=>d.message).join(' ');review('issues','Review model decisions');}
     else if(needsRuleReview(entity)&&!$<HTMLInputElement>('constraints-consent').checked){reason='Check this row against the retained PostgreSQL rules and confirm the rules checkbox above.';review('constraints-consent','Review SQL rules');}
     else if(!account){reason='Connect your wallet to create this entity.';review('connect-wallet','Go to wallet connection');}
-    else if(!consent.checked)reason='Check “I reviewed these values” above to enable deployment.';
+    else if(!consent.checked)reason='Review the fields and values, then check the confirmation above to enable deployment.';
     else {reason='One entity on Tiramisu · owner '+short(account)+'.';valid=true;}
-   }catch(error){reason=message(error);preview.textContent=reason;review(model.blockers.length?'issues':'entity-row',model.blockers.length?'Review model issues':'Review source row');}
+   }catch(error){reason=model.blockers.length?model.blockers.map(b=>(b.field?b.field.column+': ':'')+b.message).join(' '):message(error);preview.textContent=reason;review(model.blockers.length?'issues':'entity-row',model.blockers.length?'Fix model issues':'Review source row');}
   } else preview.textContent='Rebuild to review current values.';
   if(submittedHash||busy)resolve.hidden=true;
   eligibility.textContent=busy?'Waiting for the wallet or transaction confirmation…':reason;
@@ -164,10 +164,14 @@ export function initDeployment(){
  return {
   invalidate(){fresh=false;epoch++;consent.checked=false;clearPreviousFeedback();refresh();},
   setModel(e:EntityDesign|undefined,m:EntityModel,p:{owner:string;expiration:string}|undefined){
-   const keepRow=!!entity&&!!e&&JSON.stringify(entity)===JSON.stringify(e);
+   const previousSource=entity?.source;let invalidRow=false;
+   if(previousSource){try{const values=JSON.parse(row.value);if(values&&typeof values==='object'&&!Array.isArray(values))editedRows.set(previousSource,{...editedRows.get(previousSource),...values});else invalidRow=true;}catch{invalidRow=true;}}
+   const keepRaw=invalidRow&&previousSource===e?.source;
    entity=e;model=m;policy=p?{...p}:undefined;fresh=true;epoch++;consent.checked=false;
    const fields=e?[...e.payload.map(f=>[f.source.column,exampleValue(f.source.table,f.source.column,f.sourceType)] as const),...e.attributes.filter(a=>a.source).map(a=>[a.source!.column,exampleValue(a.source!.table,a.source!.column,a.sourceType??a.type,a.encoding)] as const)]:[];
-   if(!keepRow)row.value=JSON.stringify(Object.fromEntries(fields),null,2);
+   const saved=e?editedRows.get(e.source):undefined;
+   if(!keepRaw)row.value=JSON.stringify(Object.fromEntries(fields.map(([name,fallback])=>[name,saved&&Object.hasOwn(saved,name)?saved[name]:fallback])),null,2);
+   if(e&&!keepRaw)editedRows.set(e.source,JSON.parse(row.value));
    clearPreviousFeedback();
    const constraints=e&&needsRuleReview(e)?e.applicationConstraints:[];$('constraint-review').hidden=!constraints.length;$<HTMLInputElement>('constraints-consent').checked=false;$('constraint-list').replaceChildren(...constraints.map(rule=>{const li=document.createElement('li');li.textContent=rule;return li;}));refresh();
   }

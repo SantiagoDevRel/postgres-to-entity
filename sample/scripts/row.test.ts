@@ -3,6 +3,15 @@ import {generateModel} from 'postgres-to-entity';
 import {prepareRow,validateValue} from '../src/row.ts';
 const model=generateModel({sql:'CREATE TABLE tickets (id UUID PRIMARY KEY, seat SMALLINT, price NUMERIC(8,2), used BOOLEAN, secret TEXT);',filters:[{table:'tickets',column:'used',operator:'eq'},{table:'tickets',column:'price',operator:'range'}],privateFields:[{table:'tickets',column:'secret'}],privacyReviewed:true,project:'tickets',policies:[{table:'tickets',owner:'Connected wallet',expiration:'Future'}]});
 const entity=model.entities[0];const row={id:'00000000-0000-4000-8000-000000000001',seat:12,price:'12.50',used:false};
+
+test('explicit text limit measures UTF-8 bytes, preserves email, and does not constrain payload',()=>{
+ const sql='CREATE TABLE tickets (buyer_email TEXT);';
+ const m=generateModel({sql,filters:[{table:'tickets',column:'buyer_email',operator:'eq'}],attributeLimits:[{table:'tickets',column:'buyer_email',maxBytes:128}]});
+ const encode=(buyer_email:string)=>prepareRow(m.entities[0],m,JSON.stringify({buyer_email}));
+ assert.equal(encode('test@gmail.com').display.attributes.buyer_email,'test@gmail.com');assert.deepEqual(encode('test@gmail.com').payload,{});
+ assert.doesNotThrow(()=>encode('é'.repeat(64)));assert.throws(()=>encode('é'.repeat(65)),/130 UTF-8 bytes.+128/);
+ const payloadModel=generateModel({sql,filters:[]});assert.equal(prepareRow(payloadModel.entities[0],payloadModel,JSON.stringify({buyer_email:'é'.repeat(65)})).payload.buyer_email,'é'.repeat(65));
+});
 test('encodes real SDK values without scalar copies',()=>{const result=prepareRow(entity,model,JSON.stringify(row));assert.deepEqual(result.payload,{id:row.id,seat:12});assert.deepEqual(result.display.attributes,{ds:'tickets',kind:'tickets',price:'12.5',used:false});});
 test('explicit null omits nullable attribute; missing is not silently null',()=>{const result=prepareRow(entity,model,JSON.stringify({...row,used:null}));assert.ok(!Object.hasOwn(result.attributes,'used'));const {used,...missing}=row;assert.throws(()=>prepareRow(entity,model,JSON.stringify(missing)),/supply a value/);});
 test('excluded source fields cannot leak to the transaction',()=>{assert.throws(()=>prepareRow(entity,model,JSON.stringify({...row,secret:'private'})),/excluded/);});

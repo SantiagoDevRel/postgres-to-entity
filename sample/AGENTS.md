@@ -17,6 +17,13 @@ requested on 2026-09-10; the npm model engine remains offline.
 - Rows remain local until explicit review and wallet confirmation. Excluded or unknown
   fields, invalid types, lossy numeric values and unsupported encodings must fail locally.
   Model/row/account/chain changes invalidate consent; recheck before eth_sendTransaction.
+- One final checkbox reviews both public fields and actual row values for one write. The
+  exported design retains its privacy decision; do not mark it globally approved. Destination
+  changes refresh the mapping automatically and preserve local row values by source field.
+- Text attributes have a visible explicit 128 UTF-8 byte limit, validated before signing.
+  Moving a field to payload removes that field's attribute limit; never truncate or hash it.
+- Available filters describe the installed converter's mapped Arkiv types. No exclusive
+  operator selector. Explain NOT's missing-attribute behavior; do not offer ne/exists/hasType.
 - SQL constraints are shown verbatim as text. For the single-row demo, require explicit
   acknowledgement that the row was checked; do not claim to execute DEFAULT/CHECK/UNIQUE.
   This acknowledgement is not a permanent change to the engine's model decisions.
