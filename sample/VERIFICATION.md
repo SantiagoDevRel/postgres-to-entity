@@ -1,5 +1,13 @@
 # Public release verification — 2026-09-10 UTC
 
+Deployment-button follow-up (2026-09-10): reproduced a connected wallet with row consent
+checked while the model lacked its public-field review. The local and published production
+browser suites pass the new regression: explicit reason beside Deploy, keyboard-focus recovery
+without accepting consent, preserved edited row after the same mapping is rebuilt, and old
+receipt separated from current status. Inspected the blocked state at 390/768/1440 px, light/dark
+and 200% CSS zoom. Build and all 8 row tests pass. No additional real transaction or GLM spend.
+Production bundle: `index-IBtihTGt.js`; sensitive static paths return 404.
+
 Final independent Claude run: **PASS**, 2026-09-10 05:03:58 UTC. Public MCP General
 1.0.14 returned the exact installed archive model and preserved blocked-model reasons
 over HTTP. Tools production links, the public-demo receipt/entity and actual Block Explorer
