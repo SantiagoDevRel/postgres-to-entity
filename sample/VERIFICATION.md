@@ -1,5 +1,13 @@
 # Public release verification — 2026-09-10 UTC
 
+Final independent Claude run: **PASS**, 2026-09-10 05:03:58 UTC. Public MCP General
+1.0.14 returned the exact installed archive model and preserved blocked-model reasons
+over HTTP. Tools production links, the public-demo receipt/entity and actual Block Explorer
+and Data Explorer results all passed. Claude also ran the public 13-width browser suite.
+MCP: 269 tests; successful and rejected model telemetry verified through HTTP into storage.
+Tools: https://hub.arkiv.network/tools; PRs #122 and #123 merged, staging/production deployments
+successful. Only npm registry authentication remains pending; the public package archive works.
+
 - Demo: https://postgres-to-entity.vercel.app
 - Source and npm archive: https://github.com/SantiagoDevRel/postgres-to-entity/releases/tag/v0.3.0
 - The archive is publicly installable with npm. Registry publication is pending the
