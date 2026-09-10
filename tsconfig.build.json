@@ -1,0 +1,17 @@
+{
+    "extends":  "./tsconfig.json",
+    "compilerOptions":  {
+                            "noEmit":  false,
+                            "allowImportingTsExtensions":  false,
+                            "rewriteRelativeImportExtensions":  true,
+                            "outDir":  "dist",
+                            "declaration":  true,
+                            "module":  "ESNext",
+                            "moduleResolution":  "bundler"
+                        },
+    "include":  [
+                    "src/postgres.ts",
+                    "src/planner.ts",
+                    "src/sql.ts"
+                ]
+}

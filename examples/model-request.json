@@ -1,0 +1,15 @@
+{
+  "sql": "CREATE TABLE listings (id UUID PRIMARY KEY, title TEXT, price NUMERIC(10,2), status VARCHAR(16), tags VARCHAR(24)[]);",
+  "project": "workshop-listings",
+  "question": "Which listings are open and cost less than the buyer's budget?",
+  "filters": [
+    { "table": "listings", "column": "status", "operator": "eq" },
+    { "table": "listings", "column": "price", "operator": "range" },
+    { "table": "listings", "column": "tags", "operator": "contains" }
+  ],
+  "privacyReviewed": true,
+  "privateFields": [],
+  "policies": [
+    { "table": "listings", "owner": "The seller's wallet", "expiration": "30 days; seller extends while listing is available" }
+  ]
+}

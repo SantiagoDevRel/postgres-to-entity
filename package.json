@@ -1,0 +1,48 @@
+{
+  "name": "postgres-to-entity",
+  "version": "0.3.0",
+  "private": false,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SantiagoDevRel/postgres-to-entity.git"
+  },
+  "homepage": "https://postgres-to-entity.vercel.app",
+  "type": "module",
+  "description": "Convert PostgreSQL CREATE TABLE definitions into Arkiv entity models. Deterministic offline library and CLI.",
+  "exports": {
+    ".": {
+      "types": "./dist/postgres.d.ts",
+      "import": "./dist/postgres.js"
+    }
+  },
+  "bin": {
+    "postgres-to-entity": "./bin/arkiv-packer.mjs"
+  },
+  "files": [
+    "dist/postgres.js",
+    "dist/postgres.d.ts",
+    "dist/planner.js",
+    "dist/planner.d.ts",
+    "dist/sql.js",
+    "dist/sql.d.ts",
+    "bin",
+    "examples",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22 <24"
+  },
+  "scripts": {
+    "test": "node --test --experimental-strip-types src/**/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "prepack": "npm run build",
+    "model": "node bin/arkiv-packer.mjs"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

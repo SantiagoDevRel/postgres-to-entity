@@ -1,0 +1,103 @@
+import type { EntityDesign, EntityModel } from 'postgres-to-entity';
+import { help } from './help';
+
+const node = <K extends keyof HTMLElementTagNameMap>(tag: K, text?: string, className?: string) => {
+  const element = document.createElement(tag);
+  if (text !== undefined) element.textContent = text;
+  if (className) element.className = className;
+  return element;
+};
+
+/** Illustrative values only. These never enter the engine contract, clipboard or downloads. */
+export function exampleValue(table: string, column: string, type: string, encoding = ''): unknown {
+  const familiar: Record<string, Record<string, unknown>> = {
+    tickets: {id:'00000000-0000-4000-8000-000000000001', event_name:'Friday concert', seat_number:12, used:false},
+    tasks: {id:'00000000-0000-4000-8000-000000000001',title:'Book the venue',completed:false},
+    users: {id:'00000000-0000-4000-8000-000000000001',username:'alex'},
+    posts: {id:'00000000-0000-4000-8000-000000000002',author_id:'00000000-0000-4000-8000-000000000001',body:'See you at the concert!',likes:12},
+    notes: {id:'note-1',notebook:'Travel',text:'Bring a camera',metadata:{category:'packing'}}
+  };
+  // Only use familiar values when their type still matches an edited schema.
+  const known = Object.hasOwn(familiar,table) && Object.hasOwn(familiar[table],column) ? familiar[table][column] : undefined;
+  const lower=type.toLowerCase();
+  const dimensions=lower.match(/\[\d*\]/g);
+  if (dimensions) {
+    let value=exampleValue(table,column,lower.replace(/\[\d*\]/g,''));
+    for(const _dimension of dimensions)value=[value];
+    return value;
+  }
+  if (/^(bool|boolean)$/.test(lower)) return typeof known==='boolean'?known:false;
+  if (/^(i32|int|integer|smallint|int2|int4|serial|smallserial)$/.test(lower)) return typeof known==='number'?known:1;
+  if (/^(dec|bigint|bigserial|int8|numeric|decimal)/.test(lower)) return '1';
+  if (/^(json|jsonb)$/.test(lower)) return typeof known==='object'?known:{};
+  if (lower==='date') return '2026-09-18';
+  if (/^(timestamp|timestamptz)/.test(lower)) return '2026-09-18T18:00:00'+(lower.startsWith('timestamptz')||lower.includes('with time zone')?'Z':'');
+  if (lower==='uuid') return typeof known==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(known)?known:'00000000-0000-4000-8000-000000000001';
+  if (/^(str|text|string|varchar|character varying)/.test(lower)) {
+    let value=typeof known==='string'?known:'x';
+    const characters=lower.match(/\((\d+)\)/);
+    if(characters)value=[...value].slice(0,Number(characters[1])).join('');
+    const byteBound=encoding.match(/maximum (\d+) bytes/);
+    if(byteBound)while(new TextEncoder().encode(value).length>Number(byteBound[1]))value=[...value].slice(0,-1).join('');
+    return value;
+  }
+  if (/^(bytea|bytes)$/.test(lower)) return 'AA==';
+  return '<' + type + ' value>';
+}
+
+/** SDK metadata and decoded JSON illustration, separate from the exported model. */
+export function entityPreview(entity: EntityDesign, model: EntityModel) {
+  const relationship = entity.cardinality.startsWith('One relationship');
+  const section = node('section', undefined, 'entity-preview');
+  section.setAttribute('aria-label', 'Complete entity preview');
+  section.append(node('p','[ ENTITY ]','eyebrow'));
+  const heading = node('div', undefined, 'panel-head');
+  heading.append(node('h3', 'Your entity, assembled'), node('span', 'Illustrative values', 'hint'));
+  section.append(heading,node('p','Example values show the shape. Actual values come from your data; system fields are set when an entity is created or updated.','hint'));
+  const frame = node('div', undefined, 'entity-frame');
+  frame.append(node('p', entity.kind, 'entity-frame-title'));
+  const metadata = node('dl', undefined, 'entity-metadata');
+  const fields = [
+    ['key', 'Entity key', '0x…', 'Derived when the entity is created', 'SDK 0.8 derives the key with keccak256 over packed chain ID, Arkiv registry address, creating account, its entity nonce and salt. predictEntityKey can calculate it before sending the creation transaction. This is not the source primary key or a hash of your payload.'],
+    ['owner', 'Entity owner', '0x…', entity.owner ? 'Owner policy: ' + entity.owner : 'Wallet address supplied when creating the entity', 'Built-in ownership metadata. Your application supplies the real address; The model generator does not choose a wallet. Ownership can later be transferred separately.'],
+    ['creator', 'Entity creator', '0x…', 'Signing account at entity creation', 'The account that creates the entity. This stays as the original creator if ownership changes.'],
+    ['createdAt', 'Created at', '<block number>', 'Set at entity creation', 'The creation block number, not a date or timestamp. Deploying the dapp does not create this entity.'],
+    ['updatedAt', 'Updated at', '<block number>', 'Tracks the latest entity patch', 'The SDK returns the block number when entity content was last patched.'],
+    ['expiresAt', 'Entity Expiration', '<block number>', entity.expiration ?? 'Set from your expiration policy at creation', 'The expiration block is chosen when creating the entity. extendEntity can extend its lifetime.'],
+    ['creationFlags', 'Creation flags', 'readonly: false', 'SDK default · confirm before creating', 'SDK 0.8 defaults readonly and permissionlessExtension to false. With readonly false, attributes and payload can be patched. Setting readonly true at creation freezes both; creation flags themselves cannot later change.'],
+    ['contentType', 'Content type', 'application/json', 'Encoding illustrated below', 'This preview illustrates a UTF-8 JSON payload. Use jsonToPayload with application/json when implementing that encoding. Other payload formats are possible.']
+  ];
+  fields.forEach(([key,label,value,caption,explanation])=>{
+    const row=node('div');row.dataset.entityField=key;
+    const term=node('dt',label);term.append(help(label,explanation));
+    const definition=node('dd');definition.append(node('code',value),node('small',caption));
+    row.append(term,definition);metadata.append(row);
+  });
+  frame.append(metadata);
+  const attributes=node('section',undefined,'entity-attributes');attributes.dataset.entityField='attributes';
+  const attributeHeading=node('h3','Attributes');attributeHeading.append(help('entity attributes','These are the values your app filters on. ds and kind are fixed labels chosen by the model. Other attributes contain values from the selected source fields. The examples here are illustrative, and are not included in your agent handoff.'));
+  attributes.append(attributeHeading,node('p','ds and kind are fixed labels. Other values below are examples for your selected fields.','hint'));
+  const attributeList=node('dl',undefined,'attribute-values');
+  entity.attributes.forEach(attribute=>{
+    const row=node('div');row.dataset.attribute=attribute.name;
+    const term=node('dt',attribute.name);
+    const origin=attribute.source?(relationship?'Array element: ':'Field: ')+attribute.source.table+'.'+attribute.source.column
+      :attribute.name==='parent'?'Resolved parent entity key':'Fixed by the model';
+    term.append(node('small',attribute.type+' · '+origin));
+    const value=attribute.source?exampleValue(attribute.source.table,attribute.source.column,attribute.sourceType??attribute.type,attribute.encoding)
+      :attribute.name==='ds'?model.project:attribute.name==='kind'?entity.kind:'0x…';
+    row.append(term,node('dd',JSON.stringify(value)));attributeList.append(row);
+  });
+  attributes.append(attributeList);frame.append(attributes);
+  const payload=node('section',undefined,'entity-payload');payload.dataset.entityField='payload';
+  const payloadHeading=node('h3','Payload · JSON');payloadHeading.append(help('payload JSON','This is illustrative decoded JSON, using example values because a schema contains no rows. The SDK encodes this JSON into bytes. Scalar values stored in attributes are omitted here. The exported model contains mappings and types, never these illustrative values.'));
+  payload.append(payloadHeading,node('p',relationship?'Only the position is stored here. The value is an attribute; the complete array stays in the parent.':'Only fields assigned to payload appear here. Example values are not imported data.','hint'));
+  const metadataFields=entity.payloadMetadata??[];
+  const payloadObject=Object.fromEntries([
+    ...entity.payload.map(field=>[field.source.column,exampleValue(field.source.table,field.source.column,field.sourceType)]),
+    ...metadataFields.map(field=>[field.name,0])
+  ]);
+  const json=node('pre',JSON.stringify(payloadObject,null,2));json.id='payload-json';json.tabIndex=0;json.setAttribute('aria-label','Illustrative payload JSON');
+  payload.append(json);frame.append(payload);section.append(frame);
+  return section;
+}
