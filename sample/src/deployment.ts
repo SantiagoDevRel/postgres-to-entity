@@ -29,6 +29,21 @@ export function initDeployment(){
  const connect=$<HTMLButtonElement>('connect-wallet'),deploy=$<HTMLButtonElement>('deploy');
  const row=$<HTMLTextAreaElement>('entity-row'),consent=$<HTMLInputElement>('deploy-consent');
  const status=$('wallet-status'),eligibility=$('deploy-eligibility'),preview=$('transaction-preview');
+ const resolve=$<HTMLButtonElement>('deploy-resolve'),history=$<HTMLDetailsElement>('creation-history');
+ let reviewTarget='generate';
+ function review(target:string,label:string){reviewTarget=target;resolve.textContent=label;resolve.hidden=false;}
+ resolve.addEventListener('click',()=>{
+  if(busy)return;
+  const target=$(reviewTarget);if(!target)return;
+  for(let parent=target.parentElement;parent;parent=parent.parentElement)if(parent instanceof HTMLDetailsElement)parent.open=true;
+  target.scrollIntoView({block:'center'});target.focus({preventScroll:true});
+ });
+ function clearPreviousFeedback(){
+  if(submittedHash)return;
+  status.textContent='';
+  if(history.hidden)return;
+  history.open=false;$('creation-history-label').textContent='Previous creation';
+ }
  const lockedControls=new Map<HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement|HTMLButtonElement,boolean>();
  function lockInputs(locked:boolean){
   if(locked){
@@ -38,24 +53,28 @@ export function initDeployment(){
   }else{for(const [control,disabled] of lockedControls)control.disabled=disabled;lockedControls.clear();}
  }
  function refresh(){
-  let reason='Build a current model first.';let valid=false;
+  let reason='The model changed. Rebuild it before deploying.';let valid=false;
+  resolve.hidden=true;resolve.disabled=busy;
+  if(!fresh)review($('configure').hidden?'analyze':'generate',$('configure').hidden?'Read schema':'Review and rebuild model');
   if(submittedHash){reason='Transaction submitted. Check its Block Explorer receipt before starting another creation.';}
   else if(fresh&&entity&&model&&policy){
    try{
     const prepared=prepareRow(entity,model,row.value);preview.textContent=JSON.stringify(prepared.display,null,2);
-    if(policy.owner!=='Connected wallet')reason='Another wallet is an example only. Choose Connected wallet and rebuild to deploy.';
-    else if(new Date(policy.expiration).getTime()<=Date.now()||!Number.isFinite(new Date(policy.expiration).getTime()))reason='Choose a future expiration and rebuild.';
-    else if(model.decisions.some(d=>d.code==='privacy'))reason='Review public fields and rebuild.';
-    else if(model.decisions.some(d=>!['cross-entity-query','constraints'].includes(d.code)))reason='Resolve the model decisions before deploying.';
-    else if(needsRuleReview(entity)&&!$<HTMLInputElement>('constraints-consent').checked)reason='Check this row against the retained PostgreSQL rules and confirm below.';
-    else if(!account)reason='Connect your wallet to create this entity.';
-    else if(!consent.checked)reason='Review the source row and confirm that these values may be public.';
+    if(policy.owner!=='Connected wallet'){reason='Another wallet is an example only. Choose Connected wallet and rebuild to deploy.';review('refine','Review ownership');}
+    else if(new Date(policy.expiration).getTime()<=Date.now()||!Number.isFinite(new Date(policy.expiration).getTime())){reason='Choose a future expiration and rebuild.';review('refine','Review expiration');}
+    else if(model.decisions.some(d=>d.code==='privacy')){reason='The field review is missing from this model. In step 02, check “I reviewed which fields will be public”, then build the model again.';review('privacy','Review public fields');}
+    else if(model.decisions.some(d=>!['cross-entity-query','constraints'].includes(d.code))){reason='Resolve the model decisions before deploying: '+model.decisions.filter(d=>!['cross-entity-query','constraints'].includes(d.code)).map(d=>d.message).join(' ');review('issues','Review model decisions');}
+    else if(needsRuleReview(entity)&&!$<HTMLInputElement>('constraints-consent').checked){reason='Check this row against the retained PostgreSQL rules and confirm the rules checkbox above.';review('constraints-consent','Review SQL rules');}
+    else if(!account){reason='Connect your wallet to create this entity.';review('connect-wallet','Go to wallet connection');}
+    else if(!consent.checked)reason='Check “I reviewed these values” above to enable deployment.';
     else {reason='One entity on Tiramisu · owner '+short(account)+'.';valid=true;}
-   }catch(error){reason=message(error);preview.textContent=reason;}
+   }catch(error){reason=message(error);preview.textContent=reason;review(model.blockers.length?'issues':'entity-row',model.blockers.length?'Review model issues':'Review source row');}
   } else preview.textContent='Rebuild to review current values.';
-  eligibility.textContent=reason;deploy.disabled=!valid||busy;
+  if(submittedHash||busy)resolve.hidden=true;
+  eligibility.textContent=busy?'Waiting for the wallet or transaction confirmation…':reason;
+  eligibility.dataset.ready=String(valid&&!busy);deploy.disabled=!valid||busy;
  }
- function changed(){epoch++;account=undefined;connect.textContent='Connect wallet';consent.checked=false;refresh();}
+ function changed(){epoch++;account=undefined;connect.textContent='Connect wallet';consent.checked=false;clearPreviousFeedback();$('connection-status').textContent='Wallet account or network changed. Connect again to verify Tiramisu.';refresh();}
  async function ensureNetwork(p:Provider){
    const current=await p.request({method:'eth_chainId'});
    if(BigInt(current)!==BigInt(tiramisu.id)){
@@ -77,12 +96,13 @@ export function initDeployment(){
    account=accounts[0];connect.textContent=short(account);status.textContent='Connected to Tiramisu. Your wallet will ask before sending a transaction.';
   }catch(error){status.textContent=message(error);}finally{const feedback=$('connection-status');feedback.textContent=status.textContent;feedback.hidden=false;connect.disabled=false;refresh();}
  });
- row.addEventListener('input',()=>{consent.checked=false;$<HTMLInputElement>('constraints-consent').checked=false;epoch++;refresh();});
+ row.addEventListener('input',()=>{consent.checked=false;$<HTMLInputElement>('constraints-consent').checked=false;epoch++;clearPreviousFeedback();refresh();});
  $('constraints-consent').addEventListener('change',()=>{consent.checked=false;epoch++;refresh();});consent.addEventListener('change',()=>{epoch++;refresh();});
  deploy.addEventListener('click',async()=>{
   refresh();if(deploy.disabled||!provider||!account||!entity||!model||!policy)return;
   const p=provider,owner=account,selected=entity,contract=model,expires=new Date(policy.expiration),prepared=prepareRow(selected,contract,row.value),version=epoch;
   async function showCreated(result:{entityKey: `0x${string}`;txHash: `0x${string}`}) {
+    history.hidden=false;history.open=true;$('creation-history-label').textContent='Creation result';
     const output=$('deploy-result');const title=document.createElement('h3');title.textContent='Entity created';
     const key=document.createElement('p');key.textContent='Entity key: '+result.entityKey;
     const links=document.createElement('div');links.className='actions';links.append(link('Block Explorer · transaction','https://tiramisu.explorer.arkiv.network/tx/'+result.txHash),link('Block Explorer · entity','https://tiramisu.explorer.arkiv.network/entity/'+result.entityKey),link('Data Explorer - entity','https://data.arkiv.network/?q='+encodeURIComponent('$key = key('+result.entityKey+')')));
@@ -123,7 +143,7 @@ export function initDeployment(){
     const result=await wallet.createEntity({attributes:prepared.attributes,payload:jsonToPayload(prepared.payload),contentType:'application/json',expires:ExpirationTime.atDate(expires),flags:{readonly:false,permissionlessExtension:false}});
     await showCreated(result);
     submittedHash=undefined;consent.checked=false;
-  }catch(error){status.textContent=message(error);consent.checked=false;if(submittedHash){const output=$('deploy-result');const note=document.createElement('p');note.textContent='A transaction was submitted. Its outcome needs verification; do not send it again.';const hash=submittedHash as `0x${string}`;
+  }catch(error){status.textContent=message(error);consent.checked=false;if(submittedHash){history.hidden=false;history.open=true;$('creation-history-label').textContent='Transaction awaiting confirmation';const output=$('deploy-result');const note=document.createElement('p');note.textContent='A transaction was submitted. Its outcome needs verification; do not send it again.';const hash=submittedHash as `0x${string}`;
       const retry=document.createElement('button');retry.type='button';retry.className='secondary';retry.id='check-transaction';retry.textContent='Check confirmation again';
       retry.addEventListener('click',async()=>{
        if(busy)return;busy=true;retry.disabled=true;refresh();
@@ -142,11 +162,13 @@ export function initDeployment(){
       output.replaceChildren(note,link('Check transaction','https://tiramisu.explorer.arkiv.network/tx/'+hash),retry);}}finally{busy=false;lockInputs(false);connect.disabled=false;refresh();}
  });
  return {
-  invalidate(){fresh=false;epoch++;consent.checked=false;refresh();},
+  invalidate(){fresh=false;epoch++;consent.checked=false;clearPreviousFeedback();refresh();},
   setModel(e:EntityDesign|undefined,m:EntityModel,p:{owner:string;expiration:string}|undefined){
+   const keepRow=!!entity&&!!e&&JSON.stringify(entity)===JSON.stringify(e);
    entity=e;model=m;policy=p?{...p}:undefined;fresh=true;epoch++;consent.checked=false;
    const fields=e?[...e.payload.map(f=>[f.source.column,exampleValue(f.source.table,f.source.column,f.sourceType)] as const),...e.attributes.filter(a=>a.source).map(a=>[a.source!.column,exampleValue(a.source!.table,a.source!.column,a.sourceType??a.type,a.encoding)] as const)]:[];
-   row.value=JSON.stringify(Object.fromEntries(fields),null,2);
+   if(!keepRow)row.value=JSON.stringify(Object.fromEntries(fields),null,2);
+   clearPreviousFeedback();
    const constraints=e&&needsRuleReview(e)?e.applicationConstraints:[];$('constraint-review').hidden=!constraints.length;$<HTMLInputElement>('constraints-consent').checked=false;$('constraint-list').replaceChildren(...constraints.map(rule=>{const li=document.createElement('li');li.textContent=rule;return li;}));refresh();
   }
  };

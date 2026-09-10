@@ -69,6 +69,12 @@ Inputs/account/network changes invalidate reviewed data. A final guard checks th
 sending. Rejection clears consent. A submitted transaction with uncertain receipt is retained
 with its explorer and a Check confirmation again action; checking does not resubmit it.
 
+Disabled deployment explains the pending requirement immediately above the button. A review
+action focuses the relevant input without accepting consent. Public-field review in step 02
+must be included in a rebuilt model, separately from the final row-value confirmation.
+Rebuilding the same entity mapping preserves edited row values and resets confirmation.
+Changing inputs clears old status messages and collapses an earlier receipt under Previous creation.
+
 Creation displays transaction/entity Block Explorer links and a Data Explorer entity-key query.
 The latter opens the query; select Tiramisu and Execute. A direct SDK read also compares key,
 owner, creator, content type, attributes and payload with the submitted values. A failed read

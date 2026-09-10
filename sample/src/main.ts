@@ -231,6 +231,7 @@ function render(result: EntityModel, sourceModel: EntityModel, text: string) {
   el('build-status').textContent = result.status === 'modelled' ? 'Model generated locally.' : 'Draft generated. Review the listed decisions.';
 }
 function run(readOnly: boolean) {
+  deployment.invalidate();
   finishWorker(); current = false; exportsEnabled(false); closeHelp();
   el<HTMLTextAreaElement>('agent-prompt').value = '';
   let input: ModelRequest;

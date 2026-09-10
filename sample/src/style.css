@@ -166,4 +166,10 @@ input[type="datetime-local"] { width:100%; min-width:0; border:1px solid var(--f
 #deploy-result { margin-top:24px; overflow-wrap:anywhere; }
 #deploy-result .actions { display:flex; gap:16px; flex-wrap:wrap; }
 #deploy-eligibility { color:var(--accent); }
+.deploy-actions { display:flex; flex-wrap:wrap; gap:12px; align-items:stretch; }
+.deploy-actions button { max-width:100%; }
+#deploy-eligibility { margin:16px 0 12px; overflow-wrap:anywhere; }
+#deploy-eligibility[data-ready="true"] { color:var(--muted); }
+#wallet-status:not(:empty) { margin-top:16px; }
+#creation-history { margin-top:24px; }
 @media(max-width:520px) { .header-actions { width:100%; } .header-actions #connect-wallet { flex:1; } .product { font-size:16px; } }
