@@ -95,7 +95,7 @@ button:disabled { opacity:.55; cursor:default; filter:none; }
 .mapping small { display:block; }
 .field-group { border:0; padding:0; margin:24px 0; min-width:0; }
 .field-group legend { font-family:var(--font-display); font-size:20px; margin-bottom:12px; overflow-wrap:anywhere; }
-.field-choice { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:20px; padding:12px 0; border-top:1px solid var(--border); align-items:center; }
+.field-choice { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px 20px; padding:12px 0; border-top:1px solid var(--border); align-items:start; }
 .field-choice label { margin:0; font-size:14px; overflow-wrap:anywhere; }
 .field-choice label small { display:block; font-weight:400; }
 .field-choice select { font-size:14px; }
@@ -161,6 +161,14 @@ footer details p { max-width:900px; }
 input[type="datetime-local"] { width:100%; min-width:0; border:1px solid var(--field-border); border-radius:8px; padding:12px; background:var(--field); color:var(--fg); }
 .field-intro { display:block; }
 .query-guide { margin-bottom:24px; }
+.field-filters { margin:0; border:0; padding:0; min-width:0; grid-column:1 / -1; }
+.field-filters summary { font-size:14px; color:var(--accent); padding:8px 0; min-height:44px; }
+.filter-examples { margin:16px 0; font-size:14px; }
+.filter-examples>div { border-top:1px solid var(--border); padding:12px 0; }
+.filter-examples dt { font-weight:500; }
+.filter-examples dd { margin:4px 0 0; }
+.filter-examples p { margin:0 0 8px; }
+.filter-examples code { display:block; overflow-wrap:anywhere; color:var(--accent); }
 .deploy-panel { border-top:2px solid var(--field-border); margin-top:32px; padding-top:28px; }
 .deploy-panel pre { white-space:pre-wrap; overflow-wrap:anywhere; max-height:420px; overflow:auto; background:var(--field); padding:16px; font-size:14px; }
 #deploy-result { margin-top:24px; overflow-wrap:anywhere; }

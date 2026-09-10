@@ -12,7 +12,7 @@ is pending the maintainer's npm security-key authentication; the archive works w
 Node 22.12–23:
 
 ```sh
-npm install https://github.com/SantiagoDevRel/postgres-to-entity/releases/download/v0.3.0/postgres-to-entity-0.3.0.tgz
+npm install https://github.com/SantiagoDevRel/postgres-to-entity/releases/download/v0.3.1/postgres-to-entity-0.3.1.tgz
 npx postgres-to-entity schema.sql --format markdown --out entity-model.md
 ```
 
@@ -146,3 +146,20 @@ npm run dev
 mapping engine; `src/sql.ts` reads DDL. This repository contains the PostgreSQL converter
 and its sample. No skill installation is required.
 The MCP integration uses the same versioned package and remains model-only.
+
+# Text attributes (0.3.1)
+
+For a PostgreSQL text column, explicitly choose a maximum encoded size for the attribute:
+
+```js
+generateModel({
+  sql: 'CREATE TABLE tickets (id UUID PRIMARY KEY, buyer_email TEXT);',
+  filters: [{ table: 'tickets', column: 'buyer_email', operator: 'eq' }],
+  attributeLimits: [{ table: 'tickets', column: 'buyer_email', maxBytes: 128 }]
+});
+```
+
+`attributeLimits` supports scalar text/varchar/character varying fields, 1–128 UTF-8 bytes.
+It is an explicit application constraint, not a change to the PostgreSQL schema. Reject longer
+values before writing; never truncate, hash, or silently move the value to payload. A payload
+field has no attribute-specific byte limit. The sample validates these limits with the SDK.

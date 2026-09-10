@@ -68,7 +68,8 @@ export function prepareRow(entity:EntityDesign, model:EntityModel, raw:string) {
     else if(a.type==='dec')attributes[a.name]=dec(value as string);
     else if(a.type==='bool')attributes[a.name]=bool(value as boolean);
     else if(a.type==='str'){
-      const bound=a.encoding.match(/maximum (\d+) bytes/);if(bound&&new TextEncoder().encode(value as string).length>Number(bound[1]))throw Error(a.name+': exceeds attribute byte limit.');
+      const bound=a.encoding.match(/maximum (\d+) bytes/),length=new TextEncoder().encode(value as string).length;
+      if(bound&&length>Number(bound[1]))throw Error(a.name+': '+length+' UTF-8 bytes; this attribute allows '+bound[1]+'. Shorten the value or change this field to Payload above. Nothing was truncated.');
       attributes[a.name]=str(value as string);
     }else throw Error('This example cannot resolve '+a.type+' attributes.');
     pairs.push([a.name,(attributes[a.name] as {value:unknown}).value]);

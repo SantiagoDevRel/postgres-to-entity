@@ -15,7 +15,7 @@ The other ownership option is explicitly example-only and MUST disable deploymen
 
 Node 22.12–23. `npm ci`, `npm test`, `npm run typecheck`, `npm run build`.
 `npm pack --pack-destination sample/vendor` produces the consumable archive.
-Consumers: `npm install ./postgres-to-entity-0.3.0.tgz` then
+Consumers: `npm install ./postgres-to-entity-0.3.1.tgz` then
 `npx postgres-to-entity schema.sql --format markdown --out NEW_FILE.md`.
 CLI exit codes: 0 modelled, 2 needs-input, 3 blocked, 1 command/I/O error.
 Output uses exclusive creation; never overwrite a developer's edited model.
@@ -34,6 +34,10 @@ an explicit click. Test GLM comes from https://hub.arkiv.network/faucet; funding
 CAPTCHA are human steps. Never request or embed private keys/access keys.
 
 ## Hard invariants
+
+- `attributeLimits: [{table,column,maxBytes}]` explicitly bounds queried scalar text fields
+  to 1–128 UTF-8 bytes. Preserve the PostgreSQL source type. Reject oversized values; never
+  truncate or silently reroute. The sample displays 128 bytes when choosing a text attribute.
 
 - Public input requires sql. Reject schema, other database dialects, mixed formats and
   unsupported SQL statements. JSON request envelopes contain SQL plus decisions; they

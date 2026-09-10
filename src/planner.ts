@@ -11,6 +11,7 @@ export type ModelRequest = {
   question?: string;
   project?: string;
   filters?: Filter[];
+  attributeLimits?: Array<FieldRef & { maxBytes: number }>;
   privateFields?: FieldRef[];
   privacyReviewed?: boolean;
   policies?: Array<{ table: string; owner: string; expiration: string }>;
@@ -68,13 +69,23 @@ function nameFor(source: string, used: Set<string>): string {
 /** Runtime validation also applies to calls from untyped LLM tool clients. */
 function validateRequest(value: unknown): ModelRequest {
   ensure(object(value), "Expected a model request object.");
-  keys(value, ["sql", "schema", "question", "project", "filters", "privateFields", "privacyReviewed", "policies"]);
+  keys(value, ["sql", "schema", "question", "project", "filters", "attributeLimits", "privateFields", "privacyReviewed", "policies"]);
   ensure((typeof value.sql === "string") !== (value.schema !== undefined), "Supply exactly one of sql or schema.");
   if (value.sql !== undefined) ensure(typeof value.sql === "string" && value.sql.length <= 1_000_000, "SQL must be text, at most 1 MB.");
   for (const k of ["question", "project"]) if (value[k] !== undefined) ensure(string(value[k]), k + " must be non-empty text.");
   if (value.project !== undefined) ensure(bytes(value.project as string) <= 128, "Project exceeds 128 UTF-8 bytes.");
   if (value.privacyReviewed !== undefined) ensure(typeof value.privacyReviewed === "boolean", "privacyReviewed must be boolean.");
   if (value.privateFields !== undefined) ensure(refs(value.privateFields), "Invalid privateFields references.");
+  if (value.attributeLimits !== undefined) {
+    ensure(Array.isArray(value.attributeLimits) && value.attributeLimits.length <= 500, "attributeLimits must have at most 500 entries.");
+    const seen = new Set<string>();
+    for (const limit of value.attributeLimits) {
+      ensure(object(limit), "Each attribute limit must be an object.");
+      keys(limit, ["table", "column", "maxBytes"]);
+      ensure(string(limit.table) && string(limit.column) && Number.isSafeInteger(limit.maxBytes) && Number(limit.maxBytes) >= 1 && Number(limit.maxBytes) <= 128, "Attribute string limits must be 1–128 UTF-8 bytes.");
+      const ref = refKey(limit as FieldRef);ensure(!seen.has(ref), "Duplicate attribute limit.");seen.add(ref);
+    }
+  }
   if (value.filters !== undefined) {
     ensure(Array.isArray(value.filters) && value.filters.length <= 500, "filters must have at most 500 entries.");
     for (const f of value.filters) {
@@ -194,7 +205,13 @@ export function generateModel(value: unknown): EntityModel {
         all.add(key);
       }
     }
-    for (const r of [...result.filters, ...(request.privateFields ?? [])]) ensure(all.has(refKey(r)), "Unknown field: " + r.table + "." + r.column);
+    for (const r of [...result.filters, ...(request.privateFields ?? []), ...(request.attributeLimits ?? [])]) ensure(all.has(refKey(r)), "Unknown field: " + r.table + "." + r.column);
+    for (const limit of request.attributeLimits ?? []) {
+      const column = tables.find(t => t.name === limit.table)!.columns.find(c => c.name === limit.column)!;
+      ensure(["text", "varchar", "character varying"].includes(column.baseType) && !column.isArray, "Attribute byte limits apply only to scalar text fields.");
+      ensure(result.filters.some(f => refKey(f) === refKey(limit)), "Attribute limit requires a selected query field.");
+      parsed.widths.set(refKey(limit), limit.maxBytes);
+    }
     for (const p of request.policies ?? []) ensure(names.has(p.table), "Unknown policy table: " + p.table);
     if (result.blockers.length) return result;
     result.excluded = request.privateFields ?? [];
@@ -284,6 +301,10 @@ export function generateModel(value: unknown): EntityModel {
         const nullable = !c.notNull && !c.isPrimaryKey;
         entity.attributes.push({ name: nameFor(c.name, used), ...mapped, source: ref,
           sourceType: c.type, nullable, nullEncoding: nullable ? "omit-attribute" : "forbidden" });
+        if (request.attributeLimits?.some(limit => refKey(limit) === refKey(ref))) {
+          entity.attributes[entity.attributes.length - 1]!.encoding += " Explicit application limit: reject longer UTF-8 values before writing; never truncate or silently move them to payload. This does not narrow the PostgreSQL source column.";
+          result.decisions.push(issue("attribute-limit", "Enforce the explicit " + parsed.widths.get(refKey(ref)) + " UTF-8 byte limit before every attribute write. The PostgreSQL source can contain longer values; reject those values without truncation or choose a payload model.", ref));
+        }
         entity.payload = entity.payload.filter(p => refKey(p.source) !== refKey(ref));
       }
       if (entity.attributes.length > 30) result.blockers.push(issue("attribute-budget", t.name + " exceeds the 30 user-attribute budget including ds and kind. Choose an explicit split; no filter was silently moved into payload."));

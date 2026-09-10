@@ -10,7 +10,7 @@ export async function verifyBrowser(hostPage,output,origin='http://127.0.0.1:308
  const context=await hostPage.context().browser().newContext({viewport:{width:1440,height:1000},colorScheme:'dark',hasTouch:true,permissions:['clipboard-read','clipboard-write']});
  const page=await context.newPage();const errors=[],geometry=[],calls=[];page.on('pageerror',e=>errors.push(e.message));
  const address='0x1111111111111111111111111111111111111111',registry='0x4400000000000000000000000000000000000044',hash='0x'+'22'.repeat(32),blockHash='0x'+'33'.repeat(32);
- let funds=true,reject=false,chain='0x7614d1',sent=0,stored,receipt,brokenReceipt=false;
+ let includeEmail=false;let funds=true,reject=false,chain='0x7614d1',sent=0,stored,receipt,brokenReceipt=false;
  const rpc=async({method,params=[]})=>{
   calls.push(method);
   if(method==='eth_chainId')return '0x7614d1';
@@ -41,7 +41,7 @@ export async function verifyBrowser(hostPage,output,origin='http://127.0.0.1:308
    const cells=creation.attributes.map(a=>({...a,name:hexToString(a.name).replace(/\0+$/,'')}));
    const payload=cells.find(a=>a.name==='$payload').value;const decodedPayload=JSON.parse(hexToString(payload));
    assert.deepEqual(Object.keys(decodedPayload),['id','seat_number']);assert.equal(decodedPayload.seat_number,12);
-   assert.ok(!cells.some(a=>a.name==='buyer_email'));
+   assert.equal(cells.some(a=>a.name==='buyer_email'),includeEmail);if(includeEmail)assert.equal(hexToString(cells.find(a=>a.name==='buyer_email').value),'test@gmail.com');
    const attributes=cells.filter(a=>!a.name.startsWith('$')).map(a=>({name:a.name,type:a.typeId===1?'bool':'str',value:a.typeId===1?BigInt(a.value)!==0n:hexToString(a.value)}));
    assert.equal(attributes.find(a=>a.name==='event_name').value,'Friday concert');
    stored={key,owner:address,creator:address,createdAt:'0x101',updatedAt:'0x101',expiresAt:toHex(creation.expiresAt),creationFlags:0,contentType:'application/json',attributes,payload};
@@ -57,7 +57,7 @@ export async function verifyBrowser(hostPage,output,origin='http://127.0.0.1:308
  });
  const ready=()=>page.waitForFunction(()=>document.querySelector('#input-status').textContent.startsWith('Schema read.'));
  const example=async name=>{await page.locator('#example').selectOption(name);await ready();};
- const build=async()=>{await page.locator('#privacy').check();await page.locator('#generate').click();await page.waitForFunction(()=>!document.querySelector('.result-panel').hidden&&document.querySelector('#state').textContent!=='Processing…');};
+ const build=async()=>{await page.locator('#generate').click();await page.waitForFunction(()=>!document.querySelector('.result-panel').hidden&&document.querySelector('#state').textContent!=='Processing…');};
  const shot=async(name,selector)=>{if(selector)await page.locator(selector).evaluate(e=>e.scrollIntoView({block:'start'}));await page.screenshot({path:join(output,name+'.png'),fullPage:!selector});};
  try{
   await page.goto(origin);await page.evaluate(()=>document.fonts.ready);
@@ -66,17 +66,23 @@ export async function verifyBrowser(hostPage,output,origin='http://127.0.0.1:308
   await page.locator('#try-example').click();await ready();
   const lines=await page.locator('.field-intro').evaluateAll(es=>es.map(e=>({text:e.textContent,y:e.getBoundingClientRect().y})));assert.equal(lines.length,2);assert.ok(lines[1].y>lines[0].y);
   assert.equal(await page.locator('#policy-0-owner option').count(),2);assert.equal(await page.locator('#policy-0-expiration').getAttribute('type'),'datetime-local');
-  await build();assert.equal(await page.locator('#state').textContent(),'Model defined');
+  await build();assert.equal(await page.locator('#state').textContent(),'Model ready for review');
   assert.deepEqual(Object.keys(JSON.parse(await page.locator('#payload-json').textContent())),['id','seat_number']);
   await page.locator('#handoff>summary').click();await page.locator('#copy').click();const copied=(await page.evaluate(()=>navigator.clipboard.readText())).replace(/\r\n/g,'\n');assert.equal(copied,await page.locator('#agent-prompt').inputValue());assert.ok(!copied.includes('Friday concert'));
   const download=page.waitForEvent('download');await page.locator('#json').click();await (await download).saveAs(join(output,'postgres-model.json'));await page.locator('#handoff>summary').click();
+  await page.locator('#field-0-2').selectOption('attribute');await page.waitForFunction(()=>document.querySelector('#state').textContent==='Model ready for review');
+  const numericGuide=page.locator('.field-choice').filter({has:page.locator('#field-0-2')}).locator('.field-filters');await numericGuide.locator('summary').click();assert.equal(await numericGuide.locator('dt').count(),7);
+  assert.equal(await page.locator('.field-choice').filter({has:page.locator('#field-0-1')}).locator('.field-filters dt').count(),3);
+  assert.equal(await page.locator('.field-choice').filter({has:page.locator('#field-0-3')}).locator('.field-filters dt').count(),2);
+  assert.equal(await page.locator('select[aria-label^="Search "]').count(),0);
   for(const width of [320,390,519,520,521,668,669,670,682,683,684,768,1440]){
    await page.setViewportSize({width,height:1000});const g=await page.evaluate(()=>({viewport:innerWidth,overflow:document.documentElement.scrollWidth>innerWidth,panels:[...document.querySelectorAll('.panel')].filter(e=>!e.hidden).map(e=>e.getBoundingClientRect().width),font:getComputedStyle(document.querySelector('#source')).fontFamily}));assert.equal(g.overflow,false,JSON.stringify(g));assert.ok(Math.max(...g.panels)-Math.min(...g.panels)<1);geometry.push(g);
-   if([390,768,1440].includes(width)){await shot('postgres-source-'+width,'main');await shot('postgres-fields-'+width,'#configure');await shot('postgres-deploy-'+width,'#deploy-panel');}
+   if([390,768,1440].includes(width)){await shot('postgres-source-'+width,'main');await shot('postgres-fields-'+width,'#configure');await numericGuide.screenshot({path:join(output,'postgres-filters-'+width+'.png')});await shot('postgres-deploy-'+width,'#deploy-panel');}
   }
   await page.evaluate(()=>document.documentElement.style.zoom='2');await shot('postgres-zoom-200','#configure');assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);await page.evaluate(()=>document.documentElement.style.zoom='1');
   await page.locator('#theme').click();await shot('postgres-light','main');await page.locator('#theme').click();
   await page.getByRole('button',{name:'About attributes',exact:true}).click();assert.equal(await page.locator('.help-bubble').count(),1);await page.keyboard.press('Escape');assert.equal(await page.locator('.help-bubble').count(),0);
+  await page.locator('#field-0-2').selectOption('payload');await page.waitForFunction(()=>document.querySelector('#state').textContent==='Model ready for review');
   await inject();await page.locator('#connect-wallet').click();await page.waitForFunction(()=>document.querySelector('#connect-wallet').textContent.startsWith('0x'));
   await page.locator('#policy-0-owner').selectOption('Another wallet (example only)');assert.equal(await page.locator('#deploy').isDisabled(),true);await build();await page.locator('#deploy-consent').check();assert.equal(await page.locator('#deploy').isDisabled(),true);assert.match(await page.locator('#deploy-eligibility').textContent(),/example only/);
   await page.locator('#policy-0-owner').selectOption('Connected wallet');await build();
@@ -86,27 +92,34 @@ export async function verifyBrowser(hostPage,output,origin='http://127.0.0.1:308
   await page.locator('#deploy').click();await page.waitForFunction(()=>document.querySelector('#wallet-status').textContent==='Entity created and read back successfully.',{},{timeout:20000});assert.equal(sent,1);
   const links=await page.locator('#deploy-result a').evaluateAll(es=>es.map(a=>a.href));assert.ok(links.some(h=>h.endsWith('/tx/'+hash)));assert.ok(links.some(h=>new URL(h).searchParams.get('q')==='$key = key('+stored.key+')'));
   await shot('postgres-confirmed','#deploy-panel');assert.equal(await page.locator('#deploy').isDisabled(),true);
-  // Reported failure: connected/funded wallet + reviewed row, but the model is still a privacy draft.
-  const edited=original.replace('"seat_number": 12','"seat_number": 99');await page.locator('#entity-row').fill(edited);
-  await page.locator('#privacy').uncheck();await page.locator('#generate').click();await page.waitForFunction(()=>document.querySelector('#state').textContent.startsWith('Draft'));
-  assert.equal(await page.locator('#entity-row').inputValue(),edited);await page.locator('#deploy-consent').check();
-  assert.equal(await page.locator('#deploy').isDisabled(),true);assert.match(await page.locator('#deploy-eligibility').textContent(),/In step 02/);
-  assert.equal(await page.locator('#deploy').getAttribute('aria-describedby'),'deploy-eligibility');
-  assert.equal(await page.locator('#wallet-status').textContent(),'');assert.equal(await page.locator('#creation-history').getAttribute('open'),null);assert.equal(await page.locator('#creation-history-label').textContent(),'Previous creation');
-  assert.equal(await page.locator('#deploy-result a').count(),3);
-  for(const width of [390,768,1440]){
-   await page.setViewportSize({width,height:1000});await page.locator('.deploy-actions').evaluate(e=>e.scrollIntoView({block:'center'}));
-   const position=await page.evaluate(()=>{const reason=document.querySelector('#deploy-eligibility').getBoundingClientRect(),button=document.querySelector('#deploy').getBoundingClientRect();return {overflow:document.documentElement.scrollWidth>innerWidth,top:reason.top,gap:button.top-reason.bottom,bottom:button.bottom};});
-   assert.equal(position.overflow,false);assert.ok(position.top>=0&&position.bottom<=1000);assert.ok(position.gap>=0&&position.gap<=16);await page.screenshot({path:join(output,'postgres-blocked-review-'+width+'.png')});
-  }
-  await page.locator('#theme').click();await page.locator('.deploy-actions').evaluate(e=>e.scrollIntoView({block:'center'}));await page.screenshot({path:join(output,'postgres-blocked-review-light.png')});await page.locator('#theme').click();
-  await page.evaluate(()=>document.documentElement.style.zoom='2');await page.locator('.deploy-actions').evaluate(e=>e.scrollIntoView({block:'center'}));assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);await page.screenshot({path:join(output,'postgres-blocked-review-zoom.png')});await page.evaluate(()=>document.documentElement.style.zoom='1');
-  await page.locator('#deploy-resolve').click();assert.equal(await page.evaluate(()=>document.activeElement.id),'privacy');assert.equal(await page.locator('#privacy').isChecked(),false);
-  await page.locator('#privacy').check();assert.equal(await page.locator('#deploy').isDisabled(),true);assert.match(await page.locator('#deploy-eligibility').textContent(),/Rebuild/);
-  await page.locator('#generate').click();await page.waitForFunction(()=>document.querySelector('#state').textContent==='Model defined');assert.equal(await page.locator('#entity-row').inputValue(),edited);assert.equal(await page.locator('#deploy-consent').isChecked(),false);
-  await page.locator('#entity-row').fill(original);await page.locator('#deploy-consent').check();assert.equal(await page.locator('#deploy').isDisabled(),false);assert.equal(sent,1);
-  brokenReceipt=true;await page.locator('#deploy-consent').check();await page.locator('#deploy').click();await page.locator('#check-transaction').waitFor();assert.equal(sent,2);assert.equal(await page.locator('#deploy').isDisabled(),true);brokenReceipt=false;await page.locator('#check-transaction').click();await page.waitForFunction(()=>document.querySelector('#wallet-status').textContent==='Entity created and read back successfully.');assert.equal(sent,2);
+  // User's exact editing flow: excluded email -> attribute -> payload -> attribute.
+  assert.equal(await page.locator('#privacy').count(),0);
+  const settled=()=>page.waitForFunction(()=>document.querySelector('#state').textContent==='Model ready for review');
+  const mapping=()=>page.locator('.comparison [data-source-field="buyer_email"] dd').textContent();
+  const emailRow=JSON.stringify({...JSON.parse(original),buyer_email:'test@gmail.com'},null,2);
+  await page.locator('#entity-row').fill(emailRow);await page.locator('#field-0-4').selectOption('attribute');await settled();
+  assert.match(await mapping(),/attributes.buyer_email/);assert.ok(!Object.hasOwn(JSON.parse(await page.locator('#payload-json').textContent()),'buyer_email'));
+  assert.equal(JSON.parse(await page.locator('#entity-row').inputValue()).buyer_email,'test@gmail.com');
+  assert.equal(await page.locator('#deploy-consent').isChecked(),false);await page.locator('#deploy-consent').check();assert.equal(await page.locator('#deploy').isDisabled(),false);
+  assert.equal(await page.locator('#issues').textContent(),'');assert.equal(await page.locator('#wallet-status').textContent(),'');assert.equal(await page.locator('#creation-history').getAttribute('open'),null);assert.equal(await page.locator('#creation-history-label').textContent(),'Previous creation');
+  assert.match(await page.locator('#agent-prompt').inputValue(),/128 UTF-8 byte limit/);assert.ok(!(await page.locator('#agent-prompt').inputValue()).includes('test@gmail.com'));
+  await page.locator('#entity-row').fill(JSON.stringify({...JSON.parse(emailRow),buyer_email:'é'.repeat(65)}));
+  assert.match(await page.locator('#deploy-eligibility').textContent(),/130 UTF-8 bytes.+128/);assert.equal(await page.locator('#deploy').isDisabled(),true);
+  for(const width of [390,768,1440]){await page.setViewportSize({width,height:1000});await page.locator('.deploy-actions').evaluate(e=>e.scrollIntoView({block:'center'}));assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);await page.screenshot({path:join(output,'postgres-text-limit-'+width+'.png')});}
+  await page.locator('#deploy-resolve').click();assert.equal(await page.evaluate(()=>document.activeElement.id),'entity-row');
+  await page.locator('#field-0-4').selectOption('payload');await settled();assert.match(await mapping(),/payload.buyer_email/);
+  assert.equal(JSON.parse(await page.locator('#entity-row').inputValue()).buyer_email,'é'.repeat(65));await page.locator('#deploy-consent').check();assert.equal(await page.locator('#deploy').isDisabled(),false);
+  await page.locator('#field-0-4').selectOption('attribute');await settled();assert.match(await page.locator('#deploy-eligibility').textContent(),/130 UTF-8 bytes.+128/);
+  await page.locator('#entity-row').fill(emailRow);await page.locator('#deploy-consent').check();includeEmail=true;await page.locator('#deploy').click();await page.waitForFunction(()=>document.querySelector('#wallet-status').textContent==='Entity created and read back successfully.');assert.equal(sent,2);
+  await page.locator('#field-0-4').selectOption('exclude');await settled();includeEmail=false;assert.ok(!Object.hasOwn(JSON.parse(await page.locator('#entity-row').inputValue()),'buyer_email'));
+  brokenReceipt=true;await page.locator('#deploy-consent').check();await page.locator('#deploy').click();await page.locator('#check-transaction').waitFor();assert.equal(sent,3);assert.equal(await page.locator('#deploy').isDisabled(),true);brokenReceipt=false;await page.locator('#check-transaction').click();await page.waitForFunction(()=>document.querySelector('#wallet-status').textContent==='Entity created and read back successfully.');assert.equal(sent,3);
   await page.locator('#source').fill('CREATE TABLE appointments (id UUID PRIMARY KEY, event_day DATE, created_at TIMESTAMP, confirmed BOOLEAN DEFAULT false);');await page.locator('#analyze').click();await ready();await build();assert.equal(await page.locator('#constraint-review').isVisible(),true);await page.locator('#deploy-consent').check();assert.equal(await page.locator('#deploy').isDisabled(),true);await page.locator('#constraints-consent').check();await page.locator('#deploy-consent').check();assert.equal(await page.locator('#deploy').isDisabled(),false);await page.locator('#entity-row').fill((await page.locator('#entity-row').inputValue()).replace('2026-09-18','2026-02-30'));assert.equal(await page.locator('#deploy').isDisabled(),true);
+  await page.locator('#field-0-2').selectOption('attribute');await page.waitForFunction(()=>document.querySelector('#state').textContent==='Conversion blocked');
+  assert.match(await page.locator('.comparison [data-source-field="created_at"] dd').textContent(),/Attribute mapping needs attention/);
+  assert.match(await page.locator('#deploy-eligibility').textContent(),/created_at/);await page.locator('#deploy-resolve').click();assert.equal(await page.evaluate(()=>document.activeElement.id),'issues');
+  await page.locator('#issues button').first().click();assert.equal(await page.evaluate(()=>document.activeElement.id),'field-0-2');
+  await page.locator('#field-0-2').selectOption('payload');await page.waitForFunction(()=>document.querySelector('#state').textContent.startsWith('Draft'));
+  assert.match(await page.locator('.comparison [data-source-field="created_at"] dd').textContent(),/payload.created_at/);
   await page.evaluate(()=>window.fixtureEmit('accountsChanged',[]));assert.equal(await page.locator('#connect-wallet').textContent(),'Connect wallet');assert.equal(await page.locator('#deploy').isDisabled(),true);
   for(const name of ['social','tasks','notes']){await example(name);assert.match(await page.locator('#source').inputValue(),/^CREATE TABLE/);await build();assert.notEqual(await page.locator('#state').textContent(),'Conversion blocked');}
   await page.locator('#source').fill('CREATE TABLE bad (id INTEGER); ALTER TABLE bad ADD COLUMN x TEXT;');await page.locator('#analyze').click();await page.waitForFunction(()=>document.querySelector('#state').textContent==='Conversion blocked');assert.equal(await page.locator('#deploy').isDisabled(),true);
