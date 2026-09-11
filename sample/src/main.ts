@@ -1,14 +1,16 @@
 import type { EntityModel, EntityDesign, ModelRequest, Filter } from 'postgres-to-entity';
 import { examples } from './examples';
 import { initDeployment } from './deployment';
-import { entityPreview } from './entity-preview';
+import { entityPreview, exampleValue } from './entity-preview';
 import { closeHelp, installHelp } from './help';
 import { filterGuide } from './query-guide';
 import { defaultFlags, type DemoFlags } from './creation-flags';
+import { initJourney } from './journey';
 import './style.css';
 
 const el = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const source = el<HTMLTextAreaElement>('source');
+const journey = initJourney();
 const deployment = initDeployment();
 const project = el<HTMLInputElement>('project');
 const state = el('state');
@@ -40,18 +42,20 @@ function exportsEnabled(enabled: boolean) {
 }
 function finishWorker() {
   activeWorker?.terminate(); activeWorker = undefined; clearTimeout(timer);
-  button.disabled = !analyzed; button.firstElementChild!.textContent = 'Build entity model';
+  button.disabled = !analyzed; button.firstElementChild!.textContent = 'See your entity';
   analyze.disabled = false;
   document.querySelector('.result-panel')!.setAttribute('aria-busy', 'false');
 }
 function stale(schemaChanged = false) {
   deployment.invalidate(); closeHelp(); revision++; finishWorker(); current = false; exportsEnabled(false);
+  if(schemaChanged)journey.reset();else journey.invalidateModel();
   el('copy-status').textContent = ''; el<HTMLTextAreaElement>('agent-prompt').value = '';
   if (model) {
     setState('Model needs rebuilding', 'stale');
     el('build-status').textContent = 'Build again to refresh the model and its downloads.';
   }
   if (schemaChanged) {
+    document.querySelectorAll('[data-example]').forEach(button=>button.setAttribute('aria-pressed','false'));
     analyzed = false; button.disabled = true;
     choices.clear(); sourceTypes.clear(); policies.clear(); creationFlags.clear();
     el('configure').hidden = true;
@@ -66,6 +70,7 @@ function loadExample(name: keyof typeof examples) {
   const example = examples[name].request;
   source.value = example.sql;
   project.value = example.project ?? 'my-app';
+  document.querySelectorAll<HTMLButtonElement>('[data-example]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.example===name)));
   example.filters?.forEach(({table, column, operator}) => choices.set(key(table, column), operator));
   example.privateFields?.forEach(({table,column})=>choices.set(key(table,column),'exclude'));
 
@@ -103,6 +108,7 @@ function request(readOnly: boolean): ModelRequest {
   return result;
 }
 function renderControls(sourceModel: EntityModel, queryModel: EntityModel) {
+  updateConcepts(sourceModel);
   const container = el('field-controls'); container.replaceChildren();
   const policyContainer = el('policy-controls'); policyContainer.replaceChildren();
   sourceModel.entities.forEach((entity, tableIndex) => {
@@ -118,7 +124,7 @@ function renderControls(sourceModel: EntityModel, queryModel: EntityModel) {
       const select = node('select'); select.id = id;
       const type = field.sourceType.toLowerCase();
       const array = /\[/.test(type);
-      [['payload', 'Payload'], ['attribute', 'Queryable attribute'], ['exclude', 'Exclude from model']].forEach(([value, text]) => {
+      [['payload', 'Payload · store it'], ['attribute', 'Attribute · filter on it'], ['exclude', 'Exclude from model']].forEach(([value, text]) => {
         const option = node('option', text); option.value = value; option.disabled = value === 'attribute' && array; select.append(option);
       });
       const previous = choices.get(encoded) ?? 'payload';
@@ -133,7 +139,8 @@ function renderControls(sourceModel: EntityModel, queryModel: EntityModel) {
       select.addEventListener('change', update);
       controls.append(select,limit);
       if(array)controls.append(node('small','Array: keep the complete list in payload.'));
-      row.append(label, controls,guide); group.append(row);
+      const arrow=node('span','→','field-arrow');arrow.setAttribute('aria-hidden','true');
+      row.append(label,arrow,controls,guide); group.append(row);
 
     });
     container.append(group);
@@ -152,9 +159,20 @@ function renderControls(sourceModel: EntityModel, queryModel: EntityModel) {
     existing.expiration=expiry.value;
     const updatePolicy=()=>{existing.owner=owner.value;existing.expiration=expiry.value;policies.set(entity.source,existing);stale();};
     owner.addEventListener('change',updatePolicy);expiry.addEventListener('input',updatePolicy);
-    policyGroup.append(ownerLabel,owner,node('p','Another wallet is for modelling only; it cannot deploy from this demo.','hint'),expiryLabel,expiry,node('p','Your local date and time. Arkiv converts the target into an expiration block; actual timing depends on the network. The owner can extend later.','hint'));
+    policyGroup.append(ownerLabel,owner,node('p','Another wallet is example-only.','hint'),expiryLabel,expiry,node('p','Your local time, converted to a network block. The owner can extend it later.','hint'));
     policyContainer.append(policyGroup);
   });
+}
+function updateConcepts(sourceModel:EntityModel){
+  const fields=sourceModel.entities.flatMap(entity=>entity.payload);
+  const find=(attribute:boolean)=>fields.find(field=>{
+    const choice=choices.get(key(field.source.table,field.source.column))??'payload';
+    return attribute?!['payload','exclude'].includes(choice):choice==='payload'&&field.source.column!=='id';
+  });
+  const attribute=find(true),payload=find(false);
+  const samples=document.querySelectorAll('.concept-pair code');
+  samples[0].textContent=attribute?attribute.source.column+' = '+JSON.stringify(exampleValue(attribute.source.table,attribute.source.column,attribute.sourceType)):'Select a field to filter on.';
+  samples[1].textContent=payload?JSON.stringify({[payload.source.column]:exampleValue(payload.source.table,payload.source.column,payload.sourceType)}):'Other content stays here.';
 }
 function renderEntity(entity: EntityDesign, sourceModel: EntityModel, result: EntityModel) {
   const card = node('article', undefined, 'entity');
@@ -200,14 +218,16 @@ function renderEntity(entity: EntityDesign, sourceModel: EntityModel, result: En
   return card;
 }
 function render(result: EntityModel, sourceModel: EntityModel, text: string) {
+  updateConcepts(sourceModel);
   model = result; markdown = text; current = true;
   document.querySelector<HTMLElement>('.result-panel')!.hidden = false;
+  journey.ready(3);
   const actionable = result.decisions.filter(d=>!['privacy','attribute-limit'].includes(d.code));
   const designReady = !result.blockers.length && !actionable.length;
   const labels = { blocked: 'Conversion blocked', 'needs-input': 'Draft · decisions needed', modelled: 'Model defined' };
   setState(designReady?'Model ready for review':labels[result.status], designReady?'modelled':result.status);
   el('result-summary').textContent = result.entities.length
-    ? result.entities.length + (result.entities.length === 1 ? ' entity type. ' : ' entity types. ') + 'Review where your fields go, then copy the model to your agent.'
+    ? result.entities.length + (result.entities.length === 1 ? ' entity type' : ' entity types') + ' from your schema.'
     : 'The source could not be fully converted. Resolve the issues below and try again.';
   const issues = el('issues'); issues.replaceChildren();
   for (const [title, entries] of [['Fix these fields', result.blockers], ['Decisions for your app', actionable]] as const) {
@@ -218,7 +238,7 @@ function render(result: EntityModel, sourceModel: EntityModel, text: string) {
       const item = node('li',(d.field ? d.field.table + '.' + d.field.column + ': ' : '') + d.message);
       if(d.field){const action=node('button','Edit field','text-button');action.type='button';action.addEventListener('click',()=>{
         const index=sourceModel.entities.findIndex(e=>e.source===d.field!.table),column=sourceModel.entities[index]?.payload.findIndex(p=>p.source.column===d.field!.column);
-        const control=el('field-'+index+'-'+column);control?.scrollIntoView({block:'center'});control?.focus({preventScroll:true});
+        const control=el('field-'+index+'-'+column);if(control)journey.reveal(control);control?.scrollIntoView({block:'center'});control?.focus({preventScroll:true});
       });item.append(action);}list.append(item);
     });
     box.append(list); issues.append(box);
@@ -246,15 +266,16 @@ function render(result: EntityModel, sourceModel: EntityModel, text: string) {
   };
   picker.onchange = showEntity; showEntity();
   el('handoff-help').textContent = designReady
-    ? 'Copy this model into your agent’s conversation. It keeps public-data review and any byte-limit enforcement decisions for your app. The demo confirmation covers only one write; illustrative values are excluded.'
-    : 'Copy this draft to your agent to resolve the listed decisions first. Illustrative preview values are excluded.';
+    ? 'Paste this into your agent. Example values are excluded.'
+    : 'Resolve the listed decisions with your agent. Example values are excluded.';
   el<HTMLTextAreaElement>('agent-prompt').value = handoff();
   el('copy').textContent = designReady ? 'Copy for your agent' : 'Copy draft for your agent';
   exportsEnabled(true);
-  el('build-status').textContent = designReady ? 'Mapping updated. Review the fields and values below before creating an entity.' : 'Draft updated. Review the listed decisions.';
+  el('build-status').textContent = designReady ? 'Mapping updated. Continue to see your entity.' : 'Draft updated. See your entity to review decisions.';
 }
-function run(readOnly: boolean) {
+function run(readOnly: boolean, advance = false) {
   deployment.invalidate();
+  journey.invalidateModel();
   finishWorker(); current = false; exportsEnabled(false); closeHelp();
   el<HTMLTextAreaElement>('agent-prompt').value = '';
   let input: ModelRequest;
@@ -280,18 +301,19 @@ function run(readOnly: boolean) {
       if (version !== revision) return;
       finishWorker();
       if (readOnly && !data.sourceModel.blockers.length) {
-        analyzed = true;button.disabled = false;renderControls(data.sourceModel,data.queryModel);el('configure').hidden = false;
-        el('input-status').textContent = 'Schema read. Choose a destination for each field below.';
+        analyzed = true;button.disabled = false;renderControls(data.sourceModel,data.queryModel);el('configure').hidden = false;journey.ready(2);if(advance)journey.show(2);
+        el('input-status').textContent = 'Schema read. Continue to choose your fields.';
         el('build-status').textContent = '';
         // A previously generated model remains explicitly stale until the new selections are built.
         if(model)setState('Model needs rebuilding','stale');
-      } else render(data.model, data.sourceModel, data.markdown);
+      } else {render(data.model, data.sourceModel, data.markdown);if(advance||readOnly)journey.show(3);}
     };
     activeWorker.onerror = fail; timer = setTimeout(fail, 8000); activeWorker.postMessage(input);
   } catch { fail(); }
 }
-el<HTMLFormElement>('form').addEventListener('submit', event => {event.preventDefault();run(false);});
-analyze.addEventListener('click',()=>run(true));
+el<HTMLFormElement>('form').addEventListener('submit', event => {event.preventDefault();run(false,true);});
+el<HTMLFormElement>('form').addEventListener('invalid',event=>{if(event.target instanceof HTMLElement)journey.reveal(event.target);},true);
+analyze.addEventListener('click',()=>{if(analyzed)journey.show(2);else run(true,true);});
 source.addEventListener('input', () => { stale(true); el('example-help').hidden = true; el<HTMLSelectElement>('example').value=''; });
 
 project.addEventListener('input', () => stale());
@@ -342,5 +364,10 @@ el('theme').addEventListener('click', () => {
 });
 for (const [value, example] of Object.entries(examples)) {
   const option = node('option', example.label); option.value = value; el('example').append(option);
+  const tile=node('button',undefined,'example-tile');tile.type='button';tile.dataset.example=value;tile.setAttribute('aria-pressed','false');
+  const captions:Record<string,string>={tickets:'Concerts & seats',social:'People & posts',tasks:'A simple to-do list',notes:'Notes & notebooks'};
+  tile.append(node('strong',example.label),node('small',captions[value]??''));
+  tile.addEventListener('click',()=>{el<HTMLSelectElement>('example').value=value;loadExample(value as keyof typeof examples);});el('example-tiles').append(tile);
 }
+el('open-handoff').addEventListener('click',()=>{el<HTMLDetailsElement>('handoff').open=true;el('handoff').scrollIntoView({block:'start'});el('copy').focus({preventScroll:true});});
 installHelp();exportsEnabled(false);button.disabled=true;themeLabel();

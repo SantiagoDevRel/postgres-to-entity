@@ -42,8 +42,11 @@ requested on 2026-09-10; the npm model engine remains offline.
 - Keep canonical Arkiv tokens and role typography; responsive checks at 320/390/768/1440,
   media 519/520/521 and actual container boundary 682/683/684, themes and 200% zoom.
   Inspect screenshots plus computed fonts, overflow, alignment and long content.
-- Keep the final handoff collapsed, Attributes and Payload explanations on separate lines,
-  accessible hover/focus/touch tooltips, and visible separators between result sections.
+- Guided steps show one mounted panel at a time. Use journey.reveal for error targets;
+  never scroll/focus a field hidden in another step. Invalid date inputs open their settings.
+  Re-reading unchanged SQL must not discard field choices. Changed SQL invalidates forward steps.
+- Keep the final handoff and optional testnet flow collapsed, Attributes and Payload in
+  separate visual areas, accessible tooltips, and visible separators between sections.
 - Public release is separate from a verified local preview. No new skill publication.
 
 Commands: npm ci; npm run build; npm run dev (3083); npm run preview (3083).

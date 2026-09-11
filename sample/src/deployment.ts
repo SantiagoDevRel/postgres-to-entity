@@ -38,6 +38,7 @@ export function initDeployment(){
  resolve.addEventListener('click',()=>{
   if(busy)return;
   const target=$(reviewTarget);if(!target)return;
+  document.dispatchEvent(new CustomEvent('journey-reveal',{detail:target}));
   for(let parent=target.parentElement;parent;parent=parent.parentElement)if(parent instanceof HTMLDetailsElement)parent.open=true;
   target.scrollIntoView({block:'center'});target.focus({preventScroll:true});
  });
@@ -50,7 +51,7 @@ export function initDeployment(){
  const lockedControls=new Map<HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement|HTMLButtonElement,boolean>();
  function lockInputs(locked:boolean){
   if(locked){
-   for(const control of document.querySelectorAll<HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement|HTMLButtonElement>('#form input,#form select,#form textarea,#form button,#entity-picker,#entity-row,#deploy-consent,#constraints-consent,[data-creation-flag]')){
+   for(const control of document.querySelectorAll<HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement|HTMLButtonElement>('#form input,#form select,#form textarea,#form button,#entity-picker,#entity-row,#deploy-consent,#constraints-consent,[data-creation-flag],[data-go-step]')){
     lockedControls.set(control,control.disabled);control.disabled=true;
    }
   }else{for(const [control,disabled] of lockedControls)control.disabled=disabled;lockedControls.clear();}
