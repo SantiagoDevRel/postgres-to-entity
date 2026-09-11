@@ -31,20 +31,10 @@ export function filterExamples(attribute: Attribute): FilterExample[] {
 export function filterGuide(attribute: Attribute | undefined): HTMLElement {
   const details = document.createElement('details');details.className = 'field-filters';
   const summary = document.createElement('summary');summary.textContent = attribute ? `Available filters · ${attribute.type}` : 'Query mapping needs a decision';details.append(summary);
-  const intro = document.createElement('p');intro.className = 'hint';
-  intro.textContent = attribute ? 'All these filters are available for this mapped type. Examples only: no query runs and nothing is selected.' : 'This source type has no verified attribute encoding in this converter. Build the model to see the required decision, or keep this field in payload.';
-  details.append(intro);
   if (!attribute) return details;
-  if(attribute.nullable){const note=document.createElement('p');note.className='hint';note.textContent='A null value is omitted from attributes. In payload it stays JSON null. Your app reconstructs null after reading the complete attribute set.';details.append(note);}
-  const list = document.createElement('dl');list.className = 'filter-examples';
+  const list = document.createElement('ul');list.className = 'filter-examples';
   for (const example of filterExamples(attribute)) {
-    const item = document.createElement('div'),term = document.createElement('dt'),definition = document.createElement('dd');
-    term.textContent = example.name;
-    const description = document.createElement('p');description.textContent = example.explanation;
-    const code = document.createElement('code');code.textContent = example.query;
-    definition.append(description, code);item.append(term, definition);list.append(item);
+    const item = document.createElement('li');item.textContent = example.name;list.append(item);
   }
-  details.append(list);
-  const scope = document.createElement('p');scope.className = 'hint';scope.textContent = 'SDK predicates shown. Import predicates from @arkiv-network/sdk/query and typed values from @arkiv-network/sdk. Combine with your app and entity-type filters to stay within the intended data.';
-  details.append(scope);return details;
+  details.append(list);return details;
 }
