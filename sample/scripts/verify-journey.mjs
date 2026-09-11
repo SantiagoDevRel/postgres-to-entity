@@ -29,7 +29,11 @@ export async function verifyJourney(browser,output,origin='http://127.0.0.1:3085
   assert.equal(await nav(2).getAttribute('aria-current'),'step');assert.doesNotMatch(await page.locator('.concept-pair>div').nth(1).textContent(),/seat_number/);
   await nav(3).click();assert.ok(!Object.hasOwn(JSON.parse(await page.locator('#payload-json').textContent()),'seat_number'));
   assert.equal(JSON.parse(await page.locator('#entity-row').inputValue()).seat_number,27);
-  await page.locator('#open-handoff').click();assert.equal(await page.locator('#handoff').getAttribute('open'),'');
+  assert.equal(await page.locator('#handoff').getAttribute('open'),null);
+  await page.locator('#open-deploy').click();assert.equal(await page.locator('#testnet-demo').getAttribute('open'),'');
+  assert.equal(await page.evaluate(()=>document.activeElement.id),'entity-row');
+  assert.equal(await page.locator('#handoff').getAttribute('open'),null);
+  await page.locator('#handoff>summary').click();assert.equal(await page.locator('#handoff').getAttribute('open'),'');
   assert.match(await page.locator('#agent-prompt').inputValue(),/"readonly": true/);assert.ok(!(await page.locator('#agent-prompt').inputValue()).includes('My event'));
   await page.locator('#handoff>summary').click();await page.locator('#testnet-demo>summary').click();
   // Every panel is inspected at every viewport, in both themes.

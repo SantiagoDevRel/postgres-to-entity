@@ -36,6 +36,9 @@ and any collapsed settings before focusing the field.
    booleans equality. AND/OR/NOT compose conditions. NOT includes missing attributes.
    Unsupported ne/exists/hasType and string pattern features are labelled unavailable. Arrays
    stay in payload in this beginner UI; array query projections remain an advanced agent task.
+   Hover either concept card or focus/tap **View entity** for a compact visual excerpt:
+   attributes above payload JSON, highlighting the section being explained. It follows the
+   first table's selected fields and uses illustrative values, never transaction data.
 3. Choose Connected wallet or Another wallet (example only), and a local calendar date/time.
    Another wallet cannot deploy; it remains useful for explaining a proposed model.
 4. See your entity: compare Attributes and Payload side by side. Expand the field mapping
@@ -44,8 +47,10 @@ and any collapsed settings before focusing the field.
    Creation flags true/false controls. Both default to false and apply to actual creation.
    The final collapsed handoff copies/downloads the model plus per-type creation settings
    in Markdown. The portable model JSON stays unchanged and excludes demo settings.
-5. Expand **Try it on Tiramisu** to optionally review/edit one JSON source row, confirm its public fields and values together, connect your injected
+5. The primary **Deploy to Tiramisu** action opens **Try it on Tiramisu** to optionally review/edit one JSON source row, confirm its public fields and values together, connect your injected
    EVM wallet and click Deploy to Arkiv. The wallet confirms creation on Tiramisu.
+   **Copy & paste to your agent** is secondary, below the testnet section and collapsed by
+   default. A new schema closes an earlier handoff. Opening the review does not send a transaction.
 
 Schema JSON/MongoDB imports are not accepted. A JSON **row editor** at the final step contains
 actual field values, not a schema. A JSON model download is output, not a source format.
@@ -96,6 +101,8 @@ is copied into the exported model.
 
 Navigation verification: a host with Playwright can call `verifyJourney(browser, output, url)`
 from `scripts/verify-journey.mjs`. Wallet regressions remain in `scripts/verify-browser.mjs`.
+`scripts/verify-concepts.mjs` covers visual help, keyboard/touch, responsive geometry and the
+primary deploy-to-review action. The host supplies Playwright; no added test dependency.
 
 Disabled deployment lists concrete model blockers or the offending row value immediately above
 the button, with a review action. Unsupported requested mappings remain labelled blocked in the
