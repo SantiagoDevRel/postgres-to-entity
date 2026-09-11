@@ -51,9 +51,15 @@ and any collapsed settings before focusing the field.
    EVM wallet and click Deploy to Arkiv. The wallet confirms creation on Tiramisu.
    **Copy & paste to your agent** is secondary, below the testnet section and collapsed by
    default. A new schema closes an earlier handoff. Opening the review does not send a transaction.
+   Below the row editor, **Your values → Arkiv entity** shows the actual encoded attributes
+   and JSON payload in separate areas. It updates with edits and mapping changes, and clears
+   on invalid input or a stale model. It uses the same prepareRow output as creation.
+   The creation-settings label includes a decorative flag icon for workshop recognition.
 
 Schema JSON/MongoDB imports are not accepted. A JSON **row editor** at the final step contains
 actual field values, not a schema. A JSON model download is output, not a source format.
+Arkiv itself also accepts text and binary payloads. This PostgreSQL demo deliberately encodes
+the remaining columns as JSON; its row editor therefore requires a JSON object.
 
 ## Ownership, expiration and public writes
 
@@ -103,6 +109,8 @@ Navigation verification: a host with Playwright can call `verifyJourney(browser,
 from `scripts/verify-journey.mjs`. Wallet regressions remain in `scripts/verify-browser.mjs`.
 `scripts/verify-concepts.mjs` covers visual help, keyboard/touch, responsive geometry and the
 primary deploy-to-review action. The host supplies Playwright; no added test dependency.
+`scripts/verify-row-preview.mjs` checks the actual values shown before signing, destination
+changes, exclusions, invalid-input clearing, responsive geometry and the flag icon.
 
 Disabled deployment lists concrete model blockers or the offending row value immediately above
 the button, with a review action. Unsupported requested mappings remain labelled blocked in the

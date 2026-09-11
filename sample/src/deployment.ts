@@ -5,6 +5,7 @@ import type { EntityDesign, EntityModel } from 'postgres-to-entity';
 import { prepareRow } from './row';
 import { exampleValue } from './entity-preview';
 import { defaultFlags, type DemoFlags } from './creation-flags';
+import { renderRowPreview } from './row-preview';
 
 type Provider=EIP1193Provider & {on?:(event:string,callback:(...args:unknown[])=>void)=>void};
 const rpc=createPublicClient({chain:tiramisu,transport:http(undefined,{timeout:15000,retryCount:1})});
@@ -57,6 +58,7 @@ export function initDeployment(){
   }else{for(const [control,disabled] of lockedControls)control.disabled=disabled;lockedControls.clear();}
  }
  function refresh(){
+  const mappedRow=$('row-mapping');mappedRow.hidden=true;mappedRow.replaceChildren();
   let reason='The model changed. Rebuild it before deploying.';let valid=false;
   resolve.hidden=true;resolve.disabled=busy;
   if(!fresh)review($('configure').hidden?'analyze':'generate',$('configure').hidden?'Read schema':'Review and rebuild model');
@@ -64,6 +66,7 @@ export function initDeployment(){
   else if(fresh&&entity&&model&&policy){
    try{
     const prepared=prepareRow(entity,model,row.value);preview.textContent=JSON.stringify({...prepared.display,flags},null,2);
+    renderRowPreview(mappedRow,prepared.display);
     if(policy.owner!=='Connected wallet'){reason='Another wallet is an example only. Choose Connected wallet and rebuild to deploy.';review('refine','Review ownership');}
     else if(new Date(policy.expiration).getTime()<=Date.now()||!Number.isFinite(new Date(policy.expiration).getTime())){reason='Choose a future expiration and rebuild.';review('refine','Review expiration');}
     else if(model.decisions.some(d=>!['privacy','attribute-limit','cross-entity-query','constraints'].includes(d.code))){reason='Resolve the model decisions before deploying: '+model.decisions.filter(d=>!['privacy','attribute-limit','cross-entity-query','constraints'].includes(d.code)).map(d=>d.message).join(' ');review('issues','Review model decisions');}

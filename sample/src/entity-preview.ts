@@ -73,7 +73,8 @@ export function entityPreview(entity: EntityDesign, model: EntityModel, flags: D
     row.append(term,definition);metadata.append(row);
   });
   const flagRow=node('div');flagRow.dataset.entityField='creationFlags';flagRow.className='creation-flags';
-  flagRow.append(node('dt','Creation settings · flags'));
+  const flagLabel=node('dt');const flagIcon=node('span','🚩 ');flagIcon.setAttribute('aria-hidden','true');
+  flagLabel.append(flagIcon,document.createTextNode('Creation settings · flags'));flagRow.append(flagLabel);
   const flagDefinition=node('dd');flagDefinition.append(node('small','Fixed when created; cannot change later.'));
   const controls=node('div',undefined,'flag-controls');
   for(const [name,labelText,description] of [
