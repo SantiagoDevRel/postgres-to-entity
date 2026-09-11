@@ -23,8 +23,6 @@ export function conceptPreview(host: HTMLElement, section: 'attributes' | 'paylo
   payloadSection.append(node('h3', 'Payload · JSON'), node('pre', JSON.stringify(payload, null, 2)));
   (section === 'attributes' ? attributeSection : payloadSection).classList.add('mini-highlight');
   entity.append(attributeSection, payloadSection);
-  const trigger = help(section + ' in an entity', entity, { hoverTarget: host, visual: true });
-  trigger.className = 'text-button concept-preview-trigger'; trigger.textContent = 'View entity ↗';
-  trigger.setAttribute('aria-label', 'Preview entity ' + section);
-  host.querySelector('.concept-preview-trigger')?.remove(); host.append(trigger);
+  host.tabIndex = 0; host.setAttribute('role', 'button');
+  help(section + ' example', entity, { trigger: host, visual: true });
 }
