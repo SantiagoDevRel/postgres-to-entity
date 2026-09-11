@@ -38,6 +38,9 @@ requested on 2026-09-10; the npm model engine remains offline.
   wallet/session. Real testnet verification needs a funded test wallet and human CAPTCHA
   if requested by the faucet. Do not bypass it or claim a simulation was a live write.
 - Render source strings with textContent. Do not persist schemas, rows or credentials.
+- The final row editor is source input; the visible Attributes/Payload preview uses only
+  prepareRow.display, the same encoder used for creation. Clear it on invalid/stale input;
+  never substitute illustrative entity-preview values for edited transaction values.
 - Model downloads/clipboard must exclude illustrative and edited row values.
 - Keep canonical Arkiv tokens and role typography; responsive checks at 320/390/768/1440,
   media 519/520/521 and actual container boundary 682/683/684, themes and 200% zoom.
