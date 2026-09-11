@@ -7,13 +7,14 @@ export async function verifyConcepts(browser,output,origin='http://127.0.0.1:308
   const context=await browser.newContext({viewport:{width:1440,height:1000},colorScheme:'dark',hasTouch:true});
   const page=await context.newPage(),errors=[],probes=[];
   page.on('pageerror',e=>errors.push(e.message));
-  const trigger=part=>page.getByRole('button',{name:'Preview entity '+part,exact:true});
+  const trigger=part=>page.getByRole('button',{name:'About '+part+' example',exact:true});
   const closed=()=>page.waitForFunction(()=>!document.querySelector('.visual-help'));
   const ready=()=>page.waitForFunction(()=>document.querySelector('#state').textContent==='Model ready for review');
   try {
     await page.goto(origin);await page.locator('[data-example="tickets"]').click();
     await page.waitForFunction(()=>document.querySelector('#input-status').textContent.startsWith('Schema read.'));
     await page.locator('#analyze').click();
+    assert.equal(await page.getByText('View entity ↗',{exact:true}).count(),0);
     // The entire concept area opens the excerpt; it stays available when hovered.
     await page.locator('.concept-pair h3').first().hover();
     await page.locator('.visual-help').waitFor();await page.locator('.visual-help').hover();
@@ -57,6 +58,7 @@ export async function verifyConcepts(browser,output,origin='http://127.0.0.1:308
     assert.doesNotMatch(await page.locator('.mini-entity dl').textContent(),/event_name/);
     assert.equal(await page.locator('.visual-help').count(),1);
     await page.keyboard.press('Escape');await page.locator('#generate').click();await ready();
+    assert.doesNotMatch(await page.locator('#complete-entity').textContent(),/Field: tickets\./);
     assert.equal(await page.locator('#handoff').getAttribute('open'),null);
     await page.locator('#open-deploy').click();
     assert.equal(await page.locator('#testnet-demo').getAttribute('open'),'');

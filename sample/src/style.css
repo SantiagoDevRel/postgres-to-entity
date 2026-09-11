@@ -208,13 +208,14 @@ input[type="datetime-local"] { width:100%; min-width:0; border:1px solid var(--f
 .step-actions #generate { margin:0; }
 .concept-pair { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); margin:0 0 24px; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
 .concept-pair>div { padding:20px; min-width:0; }
+.concept-pair>[role="button"] { cursor:help; }
+.concept-pair>[role="button"]:focus-visible { outline-offset:-3px; }
 .concept-pair>div+div { border-left:1px solid var(--border); }
 .concept-pair h3 { margin-bottom:8px; }
 .concept-pair h3 span { display:block; font:500 14px/1.5 var(--font-body); color:var(--accent); margin-top:4px; }
 .concept-pair p,.concept-pair code { font-size:14px; }
 .concept-pair p { color:var(--muted); margin:0; }
 .concept-pair code { display:block; margin-top:12px; overflow-wrap:anywhere; }
-.concept-preview-trigger { margin-top:8px; color:var(--accent); }
 .help-bubble.visual-help { padding:0; background:var(--panel); color:var(--fg); }
 .mini-entity header { padding:12px 16px; background:var(--soft); }
 .mini-entity strong { display:block; font:500 20px/1.3 var(--font-display); overflow-wrap:anywhere; }

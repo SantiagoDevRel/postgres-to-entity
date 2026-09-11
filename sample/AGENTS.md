@@ -54,6 +54,8 @@ requested on 2026-09-10; the npm model engine remains offline.
   button can request a write. Keep the agent handoff secondary and collapsed by default.
   Concept help is a small first-table excerpt with attributes above payload, not a complete
   entity or submitted data. Reuse help lifecycle/dismissal and dispose replaced hover listeners.
+  Concept cards themselves support hover/focus/touch; do not restore a View entity link that
+  suggests an existing on-chain entity. Remove all old trigger listeners when rebuilding help.
 - Public release is separate from a verified local preview. No new skill publication.
 
 Commands: npm ci; npm run build; npm run dev (3083); npm run preview (3083).

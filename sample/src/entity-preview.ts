@@ -96,9 +96,9 @@ export function entityPreview(entity: EntityDesign, model: EntityModel, flags: D
   entity.attributes.forEach(attribute=>{
     const row=node('div');row.dataset.attribute=attribute.name;
     const term=node('dt',attribute.name);
-    const origin=attribute.source?(relationship?'Array element: ':'Field: ')+attribute.source.table+'.'+attribute.source.column
+    const origin=attribute.source?''
       :attribute.name==='parent'?'Resolved parent entity key':attribute.name==='ds'?'Project name':attribute.name==='kind'?'Entity type':'Fixed by the model';
-    term.append(node('small',attribute.type+' · '+origin));
+    term.append(node('small',attribute.type+(origin?' · '+origin:'')));
     const value=attribute.source?exampleValue(attribute.source.table,attribute.source.column,attribute.sourceType??attribute.type,attribute.encoding)
       :attribute.name==='ds'?model.project:attribute.name==='kind'?entity.kind:'0x…';
     row.append(term,node('dd',JSON.stringify(value)));attributeList.append(row);

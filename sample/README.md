@@ -36,9 +36,11 @@ and any collapsed settings before focusing the field.
    booleans equality. AND/OR/NOT compose conditions. NOT includes missing attributes.
    Unsupported ne/exists/hasType and string pattern features are labelled unavailable. Arrays
    stay in payload in this beginner UI; array query projections remain an advanced agent task.
-   Hover either concept card or focus/tap **View entity** for a compact visual excerpt:
+   Hover, focus or tap either concept card for a compact visual excerpt:
    attributes above payload JSON, highlighting the section being explained. It follows the
    first table's selected fields and uses illustrative values, never transaction data.
+   These are illustrations, not explorer links to deployed entities. The main entity preview
+   shows attribute types without repeating source paths such as Field: tickets.event_name.
 3. Choose Connected wallet or Another wallet (example only), and a local calendar date/time.
    Another wallet cannot deploy; it remains useful for explaining a proposed model.
 4. See your entity: compare Attributes and Payload side by side. Expand the field mapping

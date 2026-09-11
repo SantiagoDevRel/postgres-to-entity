@@ -3,10 +3,13 @@ let sequence = 0;
 let dismiss: (() => void) | undefined;
 const hoverControllers = new WeakMap<HTMLElement, AbortController>();
 
-export function help(label: string, explanation: string | HTMLElement, options: { hoverTarget?: HTMLElement; visual?: boolean } = {}) {
-  const trigger = document.createElement('button');
-  trigger.type = 'button'; trigger.className = 'help-trigger';
-  trigger.textContent = '?'; trigger.setAttribute('aria-label', 'About ' + label);
+export function help(label: string, explanation: string | HTMLElement, options: { hoverTarget?: HTMLElement; visual?: boolean; trigger?: HTMLElement } = {}) {
+  const trigger = options.trigger ?? document.createElement('button');
+  if (!options.trigger) {
+    (trigger as HTMLButtonElement).type = 'button'; trigger.className = 'help-trigger';
+    trigger.textContent = '?';
+  }
+  trigger.setAttribute('aria-label', 'About ' + label);
   trigger.setAttribute('aria-expanded', 'false');
   const bubble = document.createElement('div');
   bubble.id = 'help-' + ++sequence; bubble.className = 'help-bubble';
@@ -39,7 +42,7 @@ export function help(label: string, explanation: string | HTMLElement, options: 
     if (dismiss === close) dismiss = undefined;
   };
   const outside = (event: PointerEvent) => {
-    if (event.target !== trigger && !bubble.contains(event.target as Node)) close();
+    if (!trigger.contains(event.target as Node) && !bubble.contains(event.target as Node)) close();
   };
   const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') close(); };
   const show = () => {
@@ -63,11 +66,12 @@ export function help(label: string, explanation: string | HTMLElement, options: 
   }, { signal: controller.signal });
   bubble.addEventListener('pointerenter', () => clearTimeout(leaveTimer));
   bubble.addEventListener('pointerleave', () => { if (document.activeElement !== trigger) close(); });
-  trigger.addEventListener('focus', show);
-  trigger.addEventListener('blur', close);
+  trigger.addEventListener('focus', show, { signal: controller.signal });
+  trigger.addEventListener('blur', close, { signal: controller.signal });
   // A click keeps focus-open help visible on touch; Escape or an outside tap dismisses it.
-  trigger.addEventListener('click', show);
+  trigger.addEventListener('click', show, { signal: controller.signal });
   trigger.addEventListener('keydown', event => {
+    if (options.trigger && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); show(); }
     if (!open || bubble.scrollHeight <= bubble.clientHeight) return;
     const distance = event.key === 'ArrowDown' ? 40 : event.key === 'ArrowUp' ? -40
       : event.key === 'PageDown' ? bubble.clientHeight : event.key === 'PageUp' ? -bubble.clientHeight : 0;
@@ -75,7 +79,7 @@ export function help(label: string, explanation: string | HTMLElement, options: 
     if (event.key === 'Home' || event.key === 'End') {
       event.preventDefault(); bubble.scrollTop = event.key === 'Home' ? 0 : bubble.scrollHeight;
     }
-  });
+  }, { signal: controller.signal });
   return trigger;
 }
 
