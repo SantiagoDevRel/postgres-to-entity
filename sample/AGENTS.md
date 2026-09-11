@@ -47,6 +47,10 @@ requested on 2026-09-10; the npm model engine remains offline.
   Re-reading unchanged SQL must not discard field choices. Changed SQL invalidates forward steps.
 - Keep the final handoff and optional testnet flow collapsed, Attributes and Payload in
   separate visual areas, accessible tooltips, and visible separators between sections.
+- The primary Deploy to Tiramisu CTA opens row review; only the guarded final deployment
+  button can request a write. Keep the agent handoff secondary and collapsed by default.
+  Concept help is a small first-table excerpt with attributes above payload, not a complete
+  entity or submitted data. Reuse help lifecycle/dismissal and dispose replaced hover listeners.
 - Public release is separate from a verified local preview. No new skill publication.
 
 Commands: npm ci; npm run build; npm run dev (3083); npm run preview (3083).

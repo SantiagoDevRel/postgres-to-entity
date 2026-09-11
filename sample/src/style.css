@@ -214,6 +214,21 @@ input[type="datetime-local"] { width:100%; min-width:0; border:1px solid var(--f
 .concept-pair p,.concept-pair code { font-size:14px; }
 .concept-pair p { color:var(--muted); margin:0; }
 .concept-pair code { display:block; margin-top:12px; overflow-wrap:anywhere; }
+.concept-preview-trigger { margin-top:8px; color:var(--accent); }
+.help-bubble.visual-help { padding:0; background:var(--panel); color:var(--fg); }
+.mini-entity header { padding:12px 16px; background:var(--soft); }
+.mini-entity strong { display:block; font:500 20px/1.3 var(--font-display); overflow-wrap:anywhere; }
+.mini-entity small { display:block; }
+.mini-entity section { padding:12px 16px; border-top:1px solid var(--border); }
+.mini-entity section.mini-highlight { border-left:3px solid var(--accent); padding-left:13px; }
+.mini-entity h3 { font:500 16px/1.5 var(--font-body); margin:0 0 8px; }
+.mini-highlight h3 { color:var(--accent); }
+.mini-entity dl { margin:0; border:1px solid var(--border); border-radius:4px; overflow:hidden; }
+.mini-entity dl>div { display:grid; grid-template-columns:minmax(0,2fr) minmax(0,3fr); }
+.mini-entity dl>div+div { border-top:1px solid var(--border); }
+.mini-entity dt,.mini-entity dd { padding:6px 8px; margin:0; overflow-wrap:anywhere; }
+.mini-entity dt { color:var(--muted); background:var(--soft); }
+.mini-entity pre { margin:0; padding:8px; background:var(--field); border:1px solid var(--border); border-radius:4px; font:400 14px/1.5 var(--font-body); white-space:pre-wrap; overflow-wrap:anywhere; }
 .field-choice { grid-template-columns:minmax(0,1fr) 24px minmax(0,1fr); align-items:center; }
 .field-arrow { color:var(--muted); text-align:center; }
 .field-choice .field-filters { align-self:start; }

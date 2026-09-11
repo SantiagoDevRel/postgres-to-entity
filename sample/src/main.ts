@@ -6,6 +6,7 @@ import { closeHelp, installHelp } from './help';
 import { filterGuide } from './query-guide';
 import { defaultFlags, type DemoFlags } from './creation-flags';
 import { initJourney } from './journey';
+import { conceptPreview } from './concept-preview';
 import './style.css';
 
 const el = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -55,6 +56,7 @@ function stale(schemaChanged = false) {
     el('build-status').textContent = 'Build again to refresh the model and its downloads.';
   }
   if (schemaChanged) {
+    el<HTMLDetailsElement>('handoff').open = false;
     document.querySelectorAll('[data-example]').forEach(button=>button.setAttribute('aria-pressed','false'));
     analyzed = false; button.disabled = true;
     choices.clear(); sourceTypes.clear(); policies.clear(); creationFlags.clear();
@@ -164,15 +166,23 @@ function renderControls(sourceModel: EntityModel, queryModel: EntityModel) {
   });
 }
 function updateConcepts(sourceModel:EntityModel){
-  const fields=sourceModel.entities.flatMap(entity=>entity.payload);
+  const entity=sourceModel.entities[0];
+  if(!entity)return;
+  const fields=entity.payload;
   const find=(attribute:boolean)=>fields.find(field=>{
     const choice=choices.get(key(field.source.table,field.source.column))??'payload';
     return attribute?!['payload','exclude'].includes(choice):choice==='payload'&&field.source.column!=='id';
   });
   const attribute=find(true),payload=find(false);
-  const samples=document.querySelectorAll('.concept-pair code');
+  const samples=document.querySelectorAll('.concept-pair>div>code');
   samples[0].textContent=attribute?attribute.source.column+' = '+JSON.stringify(exampleValue(attribute.source.table,attribute.source.column,attribute.sourceType)):'Select a field to filter on.';
   samples[1].textContent=payload?JSON.stringify({[payload.source.column]:exampleValue(payload.source.table,payload.source.column,payload.sourceType)}):'Other content stays here.';
+  const attributes: [string,unknown][]=[['ds',project.value.trim()||'my-app'],['kind',entity.kind]];
+  if(attribute)attributes.push([attribute.source.column,exampleValue(attribute.source.table,attribute.source.column,attribute.sourceType)]);
+  const content=payload?Object.fromEntries([[payload.source.column,exampleValue(payload.source.table,payload.source.column,payload.sourceType)]]):{};
+  document.querySelectorAll<HTMLElement>('.concept-pair>div').forEach((host,index)=>{
+    conceptPreview(host,index===0?'attributes':'payload',entity.kind,attributes,content);
+  });
 }
 function renderEntity(entity: EntityDesign, sourceModel: EntityModel, result: EntityModel) {
   const card = node('article', undefined, 'entity');
@@ -369,5 +379,5 @@ for (const [value, example] of Object.entries(examples)) {
   tile.append(node('strong',example.label),node('small',captions[value]??''));
   tile.addEventListener('click',()=>{el<HTMLSelectElement>('example').value=value;loadExample(value as keyof typeof examples);});el('example-tiles').append(tile);
 }
-el('open-handoff').addEventListener('click',()=>{el<HTMLDetailsElement>('handoff').open=true;el('handoff').scrollIntoView({block:'start'});el('copy').focus({preventScroll:true});});
+el('open-deploy').addEventListener('click',()=>{el<HTMLDetailsElement>('testnet-demo').open=true;el('testnet-demo').scrollIntoView({block:'start'});el('entity-row').focus({preventScroll:true});});
 installHelp();exportsEnabled(false);button.disabled=true;themeLabel();

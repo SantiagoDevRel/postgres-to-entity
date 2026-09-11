@@ -1,15 +1,19 @@
 /** One accessible, dismissible help bubble. No source data is interpreted as markup. */
 let sequence = 0;
 let dismiss: (() => void) | undefined;
+const hoverControllers = new WeakMap<HTMLElement, AbortController>();
 
-export function help(label: string, explanation: string) {
+export function help(label: string, explanation: string | HTMLElement, options: { hoverTarget?: HTMLElement; visual?: boolean } = {}) {
   const trigger = document.createElement('button');
   trigger.type = 'button'; trigger.className = 'help-trigger';
   trigger.textContent = '?'; trigger.setAttribute('aria-label', 'About ' + label);
   trigger.setAttribute('aria-expanded', 'false');
   const bubble = document.createElement('div');
   bubble.id = 'help-' + ++sequence; bubble.className = 'help-bubble';
-  bubble.role = 'tooltip'; bubble.textContent = explanation;
+  bubble.role = 'tooltip';
+  if (typeof explanation === 'string') bubble.textContent = explanation;
+  else bubble.append(explanation);
+  if (options.visual) bubble.classList.add('visual-help');
   trigger.setAttribute('aria-describedby', bubble.id);
   let open = false;
   let leaveTimer: ReturnType<typeof setTimeout> | undefined;
@@ -48,11 +52,15 @@ export function help(label: string, explanation: string) {
     document.addEventListener('pointerdown', outside);
     document.addEventListener('keydown', escape);
   };
-  trigger.addEventListener('pointerenter', event => { if (event.pointerType === 'mouse') show(); });
-  trigger.addEventListener('pointerleave', event => {
+  const hoverTarget = options.hoverTarget ?? trigger;
+  hoverControllers.get(hoverTarget)?.abort();
+  const controller = new AbortController(); hoverControllers.set(hoverTarget, controller);
+  controller.signal.addEventListener('abort', close);
+  hoverTarget.addEventListener('pointerenter', event => { if (event.pointerType === 'mouse') show(); }, { signal: controller.signal });
+  hoverTarget.addEventListener('pointerleave', event => {
     if (event.pointerType === 'mouse' && event.relatedTarget !== bubble && document.activeElement !== trigger)
       leaveTimer = setTimeout(close, 180);
-  });
+  }, { signal: controller.signal });
   bubble.addEventListener('pointerenter', () => clearTimeout(leaveTimer));
   bubble.addEventListener('pointerleave', () => { if (document.activeElement !== trigger) close(); });
   trigger.addEventListener('focus', show);
