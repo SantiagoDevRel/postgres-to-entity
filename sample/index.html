@@ -41,19 +41,12 @@
           <p class="field-intro"><strong data-help-label="attributes" data-help="Attributes hold the fields you filter on. Expand Available filters to see every compatible operator and an example. Compatible scalar values live only in attributes; This tool does not copy them into payload. Unsupported query encodings block the model instead of silently changing your choice.">Attributes</strong> are queryable.</p><p class="field-intro"><strong data-help-label="payload" data-help="Payload holds the remaining content. This sample illustrates JSON encoding. Arkiv stores payload as bytes, and a mutable entity can replace it with patchEntity. Selecting readonly at creation freezes both attributes and payload.">Payload</strong> holds the rest.</p>
           <p class="builtin-help" data-help-label="built-in queries" data-help="The protocol provides the entity key and owner. The SDK can retrieve an entity by key and filter by the built-in $owner attribute. You do not need duplicate custom attributes for these. The actual wallet address comes from your application, not from this schema.">Already available: entity key lookup and owner filtering.</p>
           <details class="query-guide"><summary>How do filters work together?</summary>
-            <p>Each queryable field lists all filters supported by its mapped Arkiv type. You can use any of them later; there is no operator to enable at creation.</p>
-            <dl class="filter-examples">
-              <div><dt>AND · every condition</dt><dd><p>Unused tickets with an exact seat number.</p><code>and(eq('seat_number', i32(12)), eq('used', false))</code></dd></div>
-              <div><dt>OR · any condition</dt><dd><p>Tickets with seat 12 or seat 24. Repeat OR for more values; there is no separate IN operator.</p><code>or(eq('seat_number', i32(12)), eq('seat_number', i32(24)))</code></dd></div>
-              <div><dt>NOT · invert a condition</dt><dd><p>Everything outside the condition, including entities missing that attribute. Add your app and entity-type conditions to avoid matching unrelated entities.</p><code>not(eq('seat_number', i32(12)))</code></dd></div>
-            </dl>
-            <p class="hint">AND, OR and NOT can be nested. SDK predicates come from @arkiv-network/sdk/query; typed values such as i32 and dec come from @arkiv-network/sdk. These examples explain filters; they do not execute queries.</p>
-            <p><strong>Not available on Tiramisu:</strong> direct != / ne(), exists() and hasType(). String matching supports starts-with, not substring, suffix, wildcard or regular-expression filters. Arrays stay in payload here; querying their elements requires a separate model.</p>
-            <p class="hint">A missing nullable attribute represents null in this model. NOT equals is not a SQL null check. Payload content has no attribute filter.</p>
+            <ul class="filter-examples"><li>AND · every condition</li><li>OR · any condition</li><li>NOT · invert a condition</li></ul>
+            <p class="hint">NOT also includes entities missing that attribute.</p>
             <a href="https://docs.arkiv.network/typescript-sdk/querying-data/#query-operators" target="_blank" rel="noreferrer">SDK filter documentation ↗</a> · <a href="https://docs.arkiv.network/json-rpc/querying-data/#query-syntax" target="_blank" rel="noreferrer">Tiramisu query syntax ↗</a>
           </details><div id="field-controls"></div>
           <details id="refine" tabindex="-1" open><summary>Ownership and lifetime <span class="hint">Wallet and calendar</span></summary>
-            <label for="project">Project namespace</label><input id="project" type="text" maxlength="128" value="my-app" />
+            <label for="project">Project namespace · ds</label><input id="project" type="text" maxlength="128" value="my-app" />
             <div id="policy-controls"></div>
           </details>
           <p class="hint">Changing a destination updates the model below. Review public fields and actual values together before deploying.</p>

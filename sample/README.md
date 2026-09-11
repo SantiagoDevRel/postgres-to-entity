@@ -26,7 +26,7 @@ SDK 0.8.0 and viem are confined to the optional wallet demo. The npm model engin
 1. Paste PostgreSQL CREATE TABLE definitions or open a .sql file. Read the schema.
 2. Choose payload, queryable attribute or exclusion per source field. Destination changes
    refresh the mapping automatically. Expand Available filters for every supported predicate
-   for the mapped type, explanations and SDK examples; no operator is selected or enabled.
+   for the mapped type as compact names; no operator is selected or enabled.
    Numeric attributes support equality and ordered comparisons; strings equality and prefix;
    booleans equality. AND/OR/NOT compose conditions. NOT includes missing attributes.
    Unsupported ne/exists/hasType and string pattern features are labelled unavailable. Arrays
@@ -34,7 +34,10 @@ SDK 0.8.0 and viem are confined to the optional wallet demo. The npm model engin
 3. Choose Connected wallet or Another wallet (example only), and a local calendar date/time.
    Another wallet cannot deploy; it remains useful for explaining a proposed model.
 4. Build the model, compare destinations, inspect the complete entity
-   illustration and payload JSON. The final collapsed handoff copies/downloads the model.
+   illustration and payload JSON. Set readonly and permissionlessExtension using the
+   Creation flags true/false controls. Both default to false and apply to actual creation.
+   The final collapsed handoff copies/downloads the model plus per-type creation settings
+   in Markdown. The portable model JSON stays unchanged and excludes demo settings.
 5. Optionally review/edit one JSON source row, confirm its public fields and values together, connect your injected
    EVM wallet and click Deploy to Arkiv. The wallet confirms creation on Tiramisu.
 
@@ -72,6 +75,13 @@ the model into verified SQL equivalence or a bulk migration.
 Inputs/account/network changes invalidate reviewed data. A final guard checks them again before
 sending. Rejection clears consent. A submitted transaction with uncertain receipt is retained
 with its explorer and a Check confirmation again action; checking does not resubmit it.
+
+Creation flags persist per entity type across mapping rebuilds and reset with a new schema.
+Changing either flag clears confirmation. Both controls lock during signing; the transaction
+uses a snapshot and readback verifies both booleans. readonly freezes attributes and payload;
+permissionlessExtension lets anyone extend expiration. Neither flag can change after creation.
+Project namespace is the custom `ds` attribute. createdAt/updatedAt are block numbers:
+they begin at the creation block, and updatedAt tracks the latest content patch.
 
 Disabled deployment lists concrete model blockers or the offending row value immediately above
 the button, with a review action. Unsupported requested mappings remain labelled blocked in the

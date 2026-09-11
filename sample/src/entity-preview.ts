@@ -1,5 +1,6 @@
 import type { EntityDesign, EntityModel } from 'postgres-to-entity';
 import { help } from './help';
+import type { DemoFlags } from './creation-flags';
 
 const node = <K extends keyof HTMLElementTagNameMap>(tag: K, text?: string, className?: string) => {
   const element = document.createElement(tag);
@@ -46,7 +47,7 @@ export function exampleValue(table: string, column: string, type: string, encodi
 }
 
 /** SDK metadata and decoded JSON illustration, separate from the exported model. */
-export function entityPreview(entity: EntityDesign, model: EntityModel) {
+export function entityPreview(entity: EntityDesign, model: EntityModel, flags: DemoFlags, onFlags: (flags: DemoFlags) => void) {
   const relationship = entity.cardinality.startsWith('One relationship');
   const section = node('section', undefined, 'entity-preview');
   section.setAttribute('aria-label', 'Complete entity preview');
@@ -62,9 +63,8 @@ export function entityPreview(entity: EntityDesign, model: EntityModel) {
     ['owner', 'Entity owner', '0x…', entity.owner ? 'Owner policy: ' + entity.owner : 'Wallet address supplied when creating the entity', 'Built-in ownership metadata. Your application supplies the real address; The model generator does not choose a wallet. Ownership can later be transferred separately.'],
     ['creator', 'Entity creator', '0x…', 'Signing account at entity creation', 'The account that creates the entity. This stays as the original creator if ownership changes.'],
     ['createdAt', 'Created at', '<block number>', 'Set at entity creation', 'The creation block number, not a date or timestamp. Deploying the dapp does not create this entity.'],
-    ['updatedAt', 'Updated at', '<block number>', 'Tracks the latest entity patch', 'The SDK returns the block number when entity content was last patched.'],
+    ['updatedAt', 'Updated at', '<block number>', 'Starts at createdAt; changes on patch', 'Both start at the creation block. updatedAt then tracks the latest content patch; these are block numbers, not dates.'],
     ['expiresAt', 'Entity Expiration', '<block number>', entity.expiration ?? 'Set from your expiration policy at creation', 'The expiration block is chosen when creating the entity. extendEntity can extend its lifetime.'],
-    ['creationFlags', 'Creation flags', 'readonly: false', 'SDK default · confirm before creating', 'SDK 0.8 defaults readonly and permissionlessExtension to false. With readonly false, attributes and payload can be patched. Setting readonly true at creation freezes both; creation flags themselves cannot later change.'],
     ['contentType', 'Content type', 'application/json', 'Encoding illustrated below', 'This preview illustrates a UTF-8 JSON payload. Use jsonToPayload with application/json when implementing that encoding. Other payload formats are possible.']
   ];
   fields.forEach(([key,label,value,caption,explanation])=>{
@@ -73,6 +73,22 @@ export function entityPreview(entity: EntityDesign, model: EntityModel) {
     const definition=node('dd');definition.append(node('code',value),node('small',caption));
     row.append(term,definition);metadata.append(row);
   });
+  const flagRow=node('div');flagRow.dataset.entityField='creationFlags';flagRow.className='creation-flags';
+  flagRow.append(node('dt','Creation flags'));
+  const flagDefinition=node('dd');flagDefinition.append(node('small','Fixed when created; cannot change later.'));
+  const controls=node('div',undefined,'flag-controls');
+  for(const [name,description] of [
+    ['readonly','true freezes attributes and payload.'],
+    ['permissionlessExtension','true lets anyone extend Entity Expiration.']
+  ] as const){
+    const control=node('div');const label=node('label',name);label.htmlFor='flag-'+name;
+    const select=node('select');select.id=label.htmlFor;select.dataset.creationFlag=name;
+    for(const value of ['false','true']){const option=node('option',value);option.value=value;select.append(option);}
+    select.value=String(flags[name]);
+    select.addEventListener('change',()=>{flags={...flags,[name]:select.value==='true'};onFlags({...flags});});
+    control.append(label,select,node('small',description));controls.append(control);
+  }
+  flagDefinition.append(controls);flagRow.append(flagDefinition);metadata.append(flagRow);
   frame.append(metadata);
   const attributes=node('section',undefined,'entity-attributes');attributes.dataset.entityField='attributes';
   const attributeHeading=node('h3','Attributes');attributeHeading.append(help('entity attributes','These are the values your app filters on. ds and kind are fixed labels chosen by the model. Other attributes contain values from the selected source fields. The examples here are illustrative, and are not included in your agent handoff.'));

@@ -23,7 +23,11 @@ requested on 2026-09-10; the npm model engine remains offline.
 - Text attributes have a visible explicit 128 UTF-8 byte limit, validated before signing.
   Moving a field to payload removes that field's attribute limit; never truncate or hash it.
 - Available filters describe the installed converter's mapped Arkiv types. No exclusive
-  operator selector. Explain NOT's missing-attribute behavior; do not offer ne/exists/hasType.
+  operator selector. Show compact filter names only; NOT's missing-attribute note lives in
+  the separate collapsed guide. Do not offer ne/exists/hasType.
+- Creation flags use true/false controls per entity type, default false. Changes invalidate
+  confirmation; lock during signing and snapshot for send/readback. Markdown handoff includes
+  the settings; the offline model JSON contract remains unchanged. Flags are immutable on-chain.
 - SQL constraints are shown verbatim as text. For the single-row demo, require explicit
   acknowledgement that the row was checked; do not claim to execute DEFAULT/CHECK/UNIQUE.
   This acknowledgement is not a permanent change to the engine's model decisions.

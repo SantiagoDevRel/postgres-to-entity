@@ -4,6 +4,7 @@ import { custom, http, isAddress, decodeEventLog, type EIP1193Provider, type Add
 import type { EntityDesign, EntityModel } from 'postgres-to-entity';
 import { prepareRow } from './row';
 import { exampleValue } from './entity-preview';
+import { defaultFlags, type DemoFlags } from './creation-flags';
 
 type Provider=EIP1193Provider & {on?:(event:string,callback:(...args:unknown[])=>void)=>void};
 const rpc=createPublicClient({chain:tiramisu,transport:http(undefined,{timeout:15000,retryCount:1})});
@@ -26,6 +27,7 @@ export function initDeployment(){
  let account:Address|undefined;
  let entity:EntityDesign|undefined,model:EntityModel|undefined,policy:{owner:string;expiration:string}|undefined;
  let fresh=false,busy=false,epoch=0;let submittedHash:string|undefined;
+ let flags=defaultFlags();
  const editedRows=new Map<string,Record<string,unknown>>();
  const connect=$<HTMLButtonElement>('connect-wallet'),deploy=$<HTMLButtonElement>('deploy');
  const row=$<HTMLTextAreaElement>('entity-row'),consent=$<HTMLInputElement>('deploy-consent');
@@ -48,7 +50,7 @@ export function initDeployment(){
  const lockedControls=new Map<HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement|HTMLButtonElement,boolean>();
  function lockInputs(locked:boolean){
   if(locked){
-   for(const control of document.querySelectorAll<HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement|HTMLButtonElement>('#form input,#form select,#form textarea,#form button,#entity-picker,#entity-row,#deploy-consent,#constraints-consent')){
+   for(const control of document.querySelectorAll<HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement|HTMLButtonElement>('#form input,#form select,#form textarea,#form button,#entity-picker,#entity-row,#deploy-consent,#constraints-consent,[data-creation-flag]')){
     lockedControls.set(control,control.disabled);control.disabled=true;
    }
   }else{for(const [control,disabled] of lockedControls)control.disabled=disabled;lockedControls.clear();}
@@ -60,7 +62,7 @@ export function initDeployment(){
   if(submittedHash){reason='Transaction submitted. Check its Block Explorer receipt before starting another creation.';}
   else if(fresh&&entity&&model&&policy){
    try{
-    const prepared=prepareRow(entity,model,row.value);preview.textContent=JSON.stringify(prepared.display,null,2);
+    const prepared=prepareRow(entity,model,row.value);preview.textContent=JSON.stringify({...prepared.display,flags},null,2);
     if(policy.owner!=='Connected wallet'){reason='Another wallet is an example only. Choose Connected wallet and rebuild to deploy.';review('refine','Review ownership');}
     else if(new Date(policy.expiration).getTime()<=Date.now()||!Number.isFinite(new Date(policy.expiration).getTime())){reason='Choose a future expiration and rebuild.';review('refine','Review expiration');}
     else if(model.decisions.some(d=>!['privacy','attribute-limit','cross-entity-query','constraints'].includes(d.code))){reason='Resolve the model decisions before deploying: '+model.decisions.filter(d=>!['privacy','attribute-limit','cross-entity-query','constraints'].includes(d.code)).map(d=>d.message).join(' ');review('issues','Review model decisions');}
@@ -100,7 +102,7 @@ export function initDeployment(){
  $('constraints-consent').addEventListener('change',()=>{consent.checked=false;epoch++;refresh();});consent.addEventListener('change',()=>{epoch++;refresh();});
  deploy.addEventListener('click',async()=>{
   refresh();if(deploy.disabled||!provider||!account||!entity||!model||!policy)return;
-  const p=provider,owner=account,selected=entity,contract=model,expires=new Date(policy.expiration),prepared=prepareRow(selected,contract,row.value),version=epoch;
+  const p=provider,owner=account,selected=entity,contract=model,expires=new Date(policy.expiration),prepared=prepareRow(selected,contract,row.value),version=epoch,submittedFlags={...flags};
   async function showCreated(result:{entityKey: `0x${string}`;txHash: `0x${string}`}) {
     history.hidden=false;history.open=true;$('creation-history-label').textContent='Creation result';
     const output=$('deploy-result');const title=document.createElement('h3');title.textContent='Entity created';
@@ -115,8 +117,9 @@ export function initDeployment(){
       const expected=JSON.stringify(prepared.payload);
       const canonical=(a:object)=>JSON.stringify(Object.entries(a).sort(([a],[b])=>a.localeCompare(b)),(_,v)=>typeof v==='bigint'?v.toString():v);
       if(actual.key!==result.entityKey||actual.owner.toLowerCase()!==owner.toLowerCase()||actual.creator.toLowerCase()!==owner.toLowerCase()||actual.contentType!=='application/json'||canonical(actual.attributes)!==canonical(prepared.attributes)||new TextDecoder().decode(actual.payload)!==expected)throw Error('Returned entity content differs from the submitted example.');
-      verification.textContent='Verified from Tiramisu: entity key, owner, creator, attributes and payload match the submitted values.';
-      const data=document.createElement('pre');data.tabIndex=0;data.textContent=JSON.stringify({key:actual.key,owner:actual.owner,creator:actual.creator,createdAt:actual.createdAt.toString(),updatedAt:actual.updatedAt.toString(),expiresAt:actual.expiresAt.toString(),contentType:actual.contentType,attributes:actual.attributes,payload:JSON.parse(new TextDecoder().decode(actual.payload))},(_,v)=>typeof v==='bigint'?v.toString():v,2);output.append(data);
+      if(actual.creationFlags.readonly!==submittedFlags.readonly||actual.creationFlags.permissionlessExtension!==submittedFlags.permissionlessExtension)throw Error('Returned creation flags differ from the submitted settings.');
+      verification.textContent='Verified from Tiramisu: entity key, owner, creator, attributes, payload and creation flags match.';
+      const data=document.createElement('pre');data.tabIndex=0;data.textContent=JSON.stringify({key:actual.key,owner:actual.owner,creator:actual.creator,createdAt:actual.createdAt.toString(),updatedAt:actual.updatedAt.toString(),expiresAt:actual.expiresAt.toString(),contentType:actual.contentType,creationFlags:actual.creationFlags,attributes:actual.attributes,payload:JSON.parse(new TextDecoder().decode(actual.payload))},(_,v)=>typeof v==='bigint'?v.toString():v,2);output.append(data);
       status.textContent='Entity created and read back successfully.';
     }catch(error){verification.textContent='Creation confirmed, but read verification is pending: '+message(error);status.textContent='Entity created. Use its transaction link to inspect the confirmed write.';}
   }
@@ -140,7 +143,7 @@ export function initDeployment(){
     }} as Provider;
     const wallet=createWalletClient({account:owner,chain:tiramisu,transport:custom(guarded)});
     status.textContent='Confirm creation in your wallet. This sends the reviewed values to Tiramisu.';
-    const result=await wallet.createEntity({attributes:prepared.attributes,payload:jsonToPayload(prepared.payload),contentType:'application/json',expires:ExpirationTime.atDate(expires),flags:{readonly:false,permissionlessExtension:false}});
+    const result=await wallet.createEntity({attributes:prepared.attributes,payload:jsonToPayload(prepared.payload),contentType:'application/json',expires:ExpirationTime.atDate(expires),flags:submittedFlags});
     await showCreated(result);
     submittedHash=undefined;consent.checked=false;
   }catch(error){status.textContent=message(error);consent.checked=false;if(submittedHash){history.hidden=false;history.open=true;$('creation-history-label').textContent='Transaction awaiting confirmation';const output=$('deploy-result');const note=document.createElement('p');note.textContent='A transaction was submitted. Its outcome needs verification; do not send it again.';const hash=submittedHash as `0x${string}`;
@@ -162,6 +165,7 @@ export function initDeployment(){
       output.replaceChildren(note,link('Check transaction','https://tiramisu.explorer.arkiv.network/tx/'+hash),retry);}}finally{busy=false;lockInputs(false);connect.disabled=false;refresh();}
  });
  return {
+  setFlags(next:DemoFlags){flags={...next};epoch++;consent.checked=false;clearPreviousFeedback();refresh();},
   invalidate(){fresh=false;epoch++;consent.checked=false;clearPreviousFeedback();refresh();},
   setModel(e:EntityDesign|undefined,m:EntityModel,p:{owner:string;expiration:string}|undefined){
    const previousSource=entity?.source;let invalidRow=false;

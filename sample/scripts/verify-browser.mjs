@@ -10,7 +10,7 @@ export async function verifyBrowser(hostPage,output,origin='http://127.0.0.1:308
  const context=await hostPage.context().browser().newContext({viewport:{width:1440,height:1000},colorScheme:'dark',hasTouch:true,permissions:['clipboard-read','clipboard-write']});
  const page=await context.newPage();const errors=[],geometry=[],calls=[];page.on('pageerror',e=>errors.push(e.message));
  const address='0x1111111111111111111111111111111111111111',registry='0x4400000000000000000000000000000000000044',hash='0x'+'22'.repeat(32),blockHash='0x'+'33'.repeat(32);
- let includeEmail=false;let funds=true,reject=false,chain='0x7614d1',sent=0,stored,receipt,brokenReceipt=false;
+ let expectedFlags=0;let includeEmail=false;let funds=true,reject=false,chain='0x7614d1',sent=0,stored,receipt,brokenReceipt=false;
  const rpc=async({method,params=[]})=>{
   calls.push(method);
   if(method==='eth_chainId')return '0x7614d1';
@@ -36,7 +36,7 @@ export async function verifyBrowser(hostPage,output,origin='http://127.0.0.1:308
    const decoded=decodeFunctionData({abi:parseAbi(['function execute((uint8 operation, bytes operationData)[] ops) returns (bytes32[] keys)']),data:params[0].data});
    assert.equal(decoded.args[0].length,1);assert.equal(decoded.args[0][0].operation,1);
    const [creation]=decodeAbiParameters(parseAbiParameters('(uint128 salt, uint64 expiresAt, uint64 minLifetime, uint8 creationFlags, (bytes32 name, uint8 typeId, bytes value)[] attributes)'),decoded.args[0][0].operationData);
-   assert.equal(creation.creationFlags,0);assert.ok(creation.expiresAt>256n);assert.equal(creation.minLifetime,0n);
+   assert.equal(creation.creationFlags,expectedFlags);assert.ok(creation.expiresAt>256n);assert.equal(creation.minLifetime,0n);
    const key=predictEntityKey({chainId:7738577,owner:address,nonce:0n,salt:creation.salt});
    const cells=creation.attributes.map(a=>({...a,name:hexToString(a.name).replace(/\0+$/,'')}));
    const payload=cells.find(a=>a.name==='$payload').value;const decodedPayload=JSON.parse(hexToString(payload));
@@ -44,8 +44,8 @@ export async function verifyBrowser(hostPage,output,origin='http://127.0.0.1:308
    assert.equal(cells.some(a=>a.name==='buyer_email'),includeEmail);if(includeEmail)assert.equal(hexToString(cells.find(a=>a.name==='buyer_email').value),'test@gmail.com');
    const attributes=cells.filter(a=>!a.name.startsWith('$')).map(a=>({name:a.name,type:a.typeId===1?'bool':'str',value:a.typeId===1?BigInt(a.value)!==0n:hexToString(a.value)}));
    assert.equal(attributes.find(a=>a.name==='event_name').value,'Friday concert');
-   stored={key,owner:address,creator:address,createdAt:'0x101',updatedAt:'0x101',expiresAt:toHex(creation.expiresAt),creationFlags:0,contentType:'application/json',attributes,payload};
-   const log={address:registry,topics:encodeEventTopics({abi:ENTITY_EVENTS_ABI,eventName:'EntityCreated',args:{entityKey:key,owner:address}}),data:encodeAbiParameters(parseAbiParameters('uint64,uint8'),[creation.expiresAt,0]),blockHash,blockNumber:'0x101',transactionHash:hash,transactionIndex:'0x0',logIndex:'0x0',removed:false};
+   stored={key,owner:address,creator:address,createdAt:'0x101',updatedAt:'0x101',expiresAt:toHex(creation.expiresAt),creationFlags:creation.creationFlags,contentType:'application/json',attributes,payload};
+   const log={address:registry,topics:encodeEventTopics({abi:ENTITY_EVENTS_ABI,eventName:'EntityCreated',args:{entityKey:key,owner:address}}),data:encodeAbiParameters(parseAbiParameters('uint64,uint8'),[creation.expiresAt,creation.creationFlags]),blockHash,blockNumber:'0x101',transactionHash:hash,transactionIndex:'0x0',logIndex:'0x0',removed:false};
    receipt={transactionHash:hash,transactionIndex:'0x0',blockHash,blockNumber:'0x101',from:address,to:registry,cumulativeGasUsed:'0x100',gasUsed:'0x100',effectiveGasPrice:'0x1',contractAddress:null,logs:[log],logsBloom:'0x'+'00'.repeat(256),status:'0x1',type:'0x2'};
    sent++;return hash;
   }
@@ -71,9 +71,9 @@ export async function verifyBrowser(hostPage,output,origin='http://127.0.0.1:308
   await page.locator('#handoff>summary').click();await page.locator('#copy').click();const copied=(await page.evaluate(()=>navigator.clipboard.readText())).replace(/\r\n/g,'\n');assert.equal(copied,await page.locator('#agent-prompt').inputValue());assert.ok(!copied.includes('Friday concert'));
   const download=page.waitForEvent('download');await page.locator('#json').click();await (await download).saveAs(join(output,'postgres-model.json'));await page.locator('#handoff>summary').click();
   await page.locator('#field-0-2').selectOption('attribute');await page.waitForFunction(()=>document.querySelector('#state').textContent==='Model ready for review');
-  const numericGuide=page.locator('.field-choice').filter({has:page.locator('#field-0-2')}).locator('.field-filters');await numericGuide.locator('summary').click();assert.equal(await numericGuide.locator('dt').count(),7);
-  assert.equal(await page.locator('.field-choice').filter({has:page.locator('#field-0-1')}).locator('.field-filters dt').count(),3);
-  assert.equal(await page.locator('.field-choice').filter({has:page.locator('#field-0-3')}).locator('.field-filters dt').count(),2);
+  const numericGuide=page.locator('.field-choice').filter({has:page.locator('#field-0-2')}).locator('.field-filters');await numericGuide.locator('summary').click();assert.equal(await numericGuide.locator('li').count(),7);
+  assert.equal(await page.locator('.field-choice').filter({has:page.locator('#field-0-1')}).locator('.field-filters li').count(),3);
+  assert.equal(await page.locator('.field-choice').filter({has:page.locator('#field-0-3')}).locator('.field-filters li').count(),2);
   assert.equal(await page.locator('select[aria-label^="Search "]').count(),0);
   for(const width of [320,390,519,520,521,668,669,670,682,683,684,768,1440]){
    await page.setViewportSize({width,height:1000});const g=await page.evaluate(()=>({viewport:innerWidth,overflow:document.documentElement.scrollWidth>innerWidth,panels:[...document.querySelectorAll('.panel')].filter(e=>!e.hidden).map(e=>e.getBoundingClientRect().width),font:getComputedStyle(document.querySelector('#source')).fontFamily}));assert.equal(g.overflow,false,JSON.stringify(g));assert.ok(Math.max(...g.panels)-Math.min(...g.panels)<1);geometry.push(g);
@@ -113,6 +113,27 @@ export async function verifyBrowser(hostPage,output,origin='http://127.0.0.1:308
   await page.locator('#entity-row').fill(emailRow);await page.locator('#deploy-consent').check();includeEmail=true;await page.locator('#deploy').click();await page.waitForFunction(()=>document.querySelector('#wallet-status').textContent==='Entity created and read back successfully.');assert.equal(sent,2);
   await page.locator('#field-0-4').selectOption('exclude');await settled();includeEmail=false;assert.ok(!Object.hasOwn(JSON.parse(await page.locator('#entity-row').inputValue()),'buyer_email'));
   brokenReceipt=true;await page.locator('#deploy-consent').check();await page.locator('#deploy').click();await page.locator('#check-transaction').waitFor();assert.equal(sent,3);assert.equal(await page.locator('#deploy').isDisabled(),true);brokenReceipt=false;await page.locator('#check-transaction').click();await page.waitForFunction(()=>document.querySelector('#wallet-status').textContent==='Entity created and read back successfully.');assert.equal(sent,3);
+  // Every flag combination reaches the actual SDK calldata, receipt and readback.
+  for(const raw of [1,2,3,0]){
+   const chosen={readonly:Boolean(raw&1),permissionlessExtension:Boolean(raw&2)};
+   await page.locator('#deploy-consent').check();
+   await page.locator('#flag-readonly').selectOption(String(chosen.readonly));
+   await page.locator('#flag-permissionlessExtension').selectOption(String(chosen.permissionlessExtension));
+   assert.equal(await page.locator('#deploy-consent').isChecked(),false);
+   assert.equal(await page.locator('#deploy').isDisabled(),true);
+   assert.deepEqual(JSON.parse(await page.locator('#transaction-preview').textContent()).flags,chosen);
+   assert.match(await page.locator('#agent-prompt').inputValue(),new RegExp('"readonly": '+chosen.readonly));
+   await build();assert.equal(await page.locator('#flag-readonly').inputValue(),String(chosen.readonly));
+   assert.equal(await page.locator('#flag-permissionlessExtension').inputValue(),String(chosen.permissionlessExtension));
+   expectedFlags=raw;await page.locator('#deploy-consent').check();await page.locator('#deploy').click();
+   await page.waitForFunction(()=>document.querySelector('#wallet-status').textContent==='Entity created and read back successfully.');
+   const actual=JSON.parse(await page.locator('#deploy-result pre').textContent());
+   assert.deepEqual(actual.creationFlags,{...chosen,raw});
+  }
+  assert.equal(sent,7);
+  assert.equal(await page.locator('.field-filters p,.field-filters code').count(),0);
+  assert.doesNotMatch(await page.locator('.comparison').textContent(),/nullable|No duplicate|Queryable\./);
+  for(const width of [390,768,1440]){await page.setViewportSize({width,height:1000});await shot('postgres-flags-'+width,'[data-entity-field="creationFlags"]');assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);}
   await page.locator('#source').fill('CREATE TABLE appointments (id UUID PRIMARY KEY, event_day DATE, created_at TIMESTAMP, confirmed BOOLEAN DEFAULT false);');await page.locator('#analyze').click();await ready();await build();assert.equal(await page.locator('#constraint-review').isVisible(),true);await page.locator('#deploy-consent').check();assert.equal(await page.locator('#deploy').isDisabled(),true);await page.locator('#constraints-consent').check();await page.locator('#deploy-consent').check();assert.equal(await page.locator('#deploy').isDisabled(),false);await page.locator('#entity-row').fill((await page.locator('#entity-row').inputValue()).replace('2026-09-18','2026-02-30'));assert.equal(await page.locator('#deploy').isDisabled(),true);
   await page.locator('#field-0-2').selectOption('attribute');await page.waitForFunction(()=>document.querySelector('#state').textContent==='Conversion blocked');
   assert.match(await page.locator('.comparison [data-source-field="created_at"] dd').textContent(),/Attribute mapping needs attention/);
