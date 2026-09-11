@@ -3,7 +3,7 @@ import type { ModelRequest } from 'postgres-to-entity';
 export const examples: Record<string, { label: string; explanation: string; request: ModelRequest }> = {
   tickets: {
     label: 'Event tickets',
-    explanation: 'Each ticket becomes an entity. Find tickets for an event and check whether they were used. The buyer’s email stays out of the public model.',
+    explanation: 'One ticket → one entity. Find tickets by event and whether they were used.',
     request: {
       sql: 'CREATE TABLE tickets (\n  id UUID PRIMARY KEY,\n  event_name VARCHAR(24),\n  seat_number INTEGER,\n  used BOOLEAN,\n  buyer_email TEXT\n);',
       question: 'Which tickets for an event have not been used?', project: 'event-tickets',
@@ -14,7 +14,7 @@ export const examples: Record<string, { label: string; explanation: string; requ
   },
   social: {
     label: 'Social network',
-    explanation: 'Users and posts stay separate entity types. A post keeps its author reference; your agent resolves that source ID to an Arkiv entity key.',
+    explanation: 'Two tables: people and their posts. Each becomes an entity type.',
     request: {
       sql: 'CREATE TABLE users (\n  id UUID PRIMARY KEY,\n  username VARCHAR(24),\n  email TEXT\n);\n\nCREATE TABLE posts (\n  id UUID PRIMARY KEY,\n  author_id UUID REFERENCES users(id),\n  body TEXT,\n  likes INTEGER\n);',
       question: 'Which posts by a user have more than 10 likes?', project:'social-posts',
@@ -28,7 +28,7 @@ export const examples: Record<string, { label: string; explanation: string; requ
   },
   tasks: {
     label: 'To-do list',
-    explanation: 'One task row becomes one entity. The title stays in payload. The completed flag moves to an attribute so you can find unfinished tasks.',
+    explanation: 'Find unfinished tasks and read their titles.',
     request: {
       sql:'CREATE TABLE tasks (\n  id UUID PRIMARY KEY,\n  title TEXT,\n  completed BOOLEAN\n);',
       question:'Which tasks are not completed?',project:'todo-list',
@@ -38,7 +38,7 @@ export const examples: Record<string, { label: string; explanation: string; requ
   },
   notes: {
     label: 'Notes',
-    explanation: 'Each note becomes an entity. Its notebook is queryable and its text stays in payload. This example assumes public notes.',
+    explanation: 'Find public notes by notebook, then read their text.',
     request:{
       sql:'CREATE TABLE notes (id UUID PRIMARY KEY, notebook VARCHAR(16), text TEXT, metadata JSONB);',
       question:'Which public notes belong to a notebook?',project:'public-notes',

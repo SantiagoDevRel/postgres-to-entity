@@ -51,10 +51,9 @@ export function entityPreview(entity: EntityDesign, model: EntityModel, flags: D
   const relationship = entity.cardinality.startsWith('One relationship');
   const section = node('section', undefined, 'entity-preview');
   section.setAttribute('aria-label', 'Complete entity preview');
-  section.append(node('p','[ ENTITY ]','eyebrow'));
   const heading = node('div', undefined, 'panel-head');
-  heading.append(node('h3', 'Your entity, assembled'), node('span', 'Illustrative values', 'hint'));
-  section.append(heading,node('p','Example values show the shape. Actual values come from your data; system fields are set when an entity is created or updated.','hint'));
+  heading.append(node('h3', 'One row → one entity'), node('span', 'Example values', 'hint'));
+  section.append(heading);
   const frame = node('div', undefined, 'entity-frame');
   frame.append(node('p', entity.kind, 'entity-frame-title'));
   const metadata = node('dl', undefined, 'entity-metadata');
@@ -74,46 +73,48 @@ export function entityPreview(entity: EntityDesign, model: EntityModel, flags: D
     row.append(term,definition);metadata.append(row);
   });
   const flagRow=node('div');flagRow.dataset.entityField='creationFlags';flagRow.className='creation-flags';
-  flagRow.append(node('dt','Creation flags'));
+  flagRow.append(node('dt','Creation settings · flags'));
   const flagDefinition=node('dd');flagDefinition.append(node('small','Fixed when created; cannot change later.'));
   const controls=node('div',undefined,'flag-controls');
-  for(const [name,description] of [
-    ['readonly','true freezes attributes and payload.'],
-    ['permissionlessExtension','true lets anyone extend Entity Expiration.']
+  for(const [name,labelText,description] of [
+    ['readonly','Lock the content','Lock attributes and payload against future changes.'],
+    ['permissionlessExtension','Let anyone extend expiration','Allow other wallets to keep the entity alive.']
   ] as const){
-    const control=node('div');const label=node('label',name);label.htmlFor='flag-'+name;
+    const control=node('div');const label=node('label',labelText);label.append(node('small',name));label.htmlFor='flag-'+name;
     const select=node('select');select.id=label.htmlFor;select.dataset.creationFlag=name;
-    for(const value of ['false','true']){const option=node('option',value);option.value=value;select.append(option);}
+    for(const value of ['false','true']){const meaning=name==='readonly'?(value==='true'?'Locked':'Editable'):(value==='true'?'Anyone':'Owner only');const option=node('option',value+' · '+meaning);option.value=value;select.append(option);}
     select.value=String(flags[name]);
     select.addEventListener('change',()=>{flags={...flags,[name]:select.value==='true'};onFlags({...flags});});
     control.append(label,select,node('small',description));controls.append(control);
   }
-  flagDefinition.append(controls);flagRow.append(flagDefinition);metadata.append(flagRow);
-  frame.append(metadata);
+  flagDefinition.append(controls);flagRow.append(flagDefinition);
   const attributes=node('section',undefined,'entity-attributes');attributes.dataset.entityField='attributes';
   const attributeHeading=node('h3','Attributes');attributeHeading.append(help('entity attributes','These are the values your app filters on. ds and kind are fixed labels chosen by the model. Other attributes contain values from the selected source fields. The examples here are illustrative, and are not included in your agent handoff.'));
-  attributes.append(attributeHeading,node('p','ds and kind are fixed labels. Other values below are examples for your selected fields.','hint'));
+  attributes.append(attributeHeading,node('p','Find entities by these values.','hint'));
   const attributeList=node('dl',undefined,'attribute-values');
   entity.attributes.forEach(attribute=>{
     const row=node('div');row.dataset.attribute=attribute.name;
     const term=node('dt',attribute.name);
     const origin=attribute.source?(relationship?'Array element: ':'Field: ')+attribute.source.table+'.'+attribute.source.column
-      :attribute.name==='parent'?'Resolved parent entity key':'Fixed by the model';
+      :attribute.name==='parent'?'Resolved parent entity key':attribute.name==='ds'?'Project name':attribute.name==='kind'?'Entity type':'Fixed by the model';
     term.append(node('small',attribute.type+' · '+origin));
     const value=attribute.source?exampleValue(attribute.source.table,attribute.source.column,attribute.sourceType??attribute.type,attribute.encoding)
       :attribute.name==='ds'?model.project:attribute.name==='kind'?entity.kind:'0x…';
     row.append(term,node('dd',JSON.stringify(value)));attributeList.append(row);
   });
-  attributes.append(attributeList);frame.append(attributes);
+  attributes.append(attributeList);
   const payload=node('section',undefined,'entity-payload');payload.dataset.entityField='payload';
   const payloadHeading=node('h3','Payload · JSON');payloadHeading.append(help('payload JSON','This is illustrative decoded JSON, using example values because a schema contains no rows. The SDK encodes this JSON into bytes. Scalar values stored in attributes are omitted here. The exported model contains mappings and types, never these illustrative values.'));
-  payload.append(payloadHeading,node('p',relationship?'Only the position is stored here. The value is an attribute; the complete array stays in the parent.':'Only fields assigned to payload appear here. Example values are not imported data.','hint'));
+  payload.append(payloadHeading,node('p',relationship?'The position of this array element.':'Read this content after finding an entity.','hint'));
   const metadataFields=entity.payloadMetadata??[];
   const payloadObject=Object.fromEntries([
     ...entity.payload.map(field=>[field.source.column,exampleValue(field.source.table,field.source.column,field.sourceType)]),
     ...metadataFields.map(field=>[field.name,0])
   ]);
   const json=node('pre',JSON.stringify(payloadObject,null,2));json.id='payload-json';json.tabIndex=0;json.setAttribute('aria-label','Illustrative payload JSON');
-  payload.append(json);frame.append(payload);section.append(frame);
+  payload.append(json);
+  const content=node('div',undefined,'entity-content');content.append(attributes,payload);frame.append(content);
+  const system=node('details',undefined,'system-fields');system.append(node('summary','System fields · key, owner & dates'),metadata);frame.append(system);
+  const settings=node('dl',undefined,'entity-metadata entity-settings');settings.append(flagRow);frame.append(settings);section.append(frame);
   return section;
 }

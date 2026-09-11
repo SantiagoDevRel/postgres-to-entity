@@ -23,6 +23,11 @@ SDK 0.8.0 and viem are confined to the optional wallet demo. The npm model engin
 
 ## Workflow
 
+The horizontal Schema → Fields → Entity navigation shows one step at a time. Completed
+steps remain available; controls stay mounted so going back preserves edits. Changing SQL
+invalidates the following steps. Blocker links and native invalid inputs reveal their step
+and any collapsed settings before focusing the field.
+
 1. Paste PostgreSQL CREATE TABLE definitions or open a .sql file. Read the schema.
 2. Choose payload, queryable attribute or exclusion per source field. Destination changes
    refresh the mapping automatically. Expand Available filters for every supported predicate
@@ -33,12 +38,13 @@ SDK 0.8.0 and viem are confined to the optional wallet demo. The npm model engin
    stay in payload in this beginner UI; array query projections remain an advanced agent task.
 3. Choose Connected wallet or Another wallet (example only), and a local calendar date/time.
    Another wallet cannot deploy; it remains useful for explaining a proposed model.
-4. Build the model, compare destinations, inspect the complete entity
+4. See your entity: compare Attributes and Payload side by side. Expand the field mapping
+   or system metadata when needed. Inspect the complete entity
    illustration and payload JSON. Set readonly and permissionlessExtension using the
    Creation flags true/false controls. Both default to false and apply to actual creation.
    The final collapsed handoff copies/downloads the model plus per-type creation settings
    in Markdown. The portable model JSON stays unchanged and excludes demo settings.
-5. Optionally review/edit one JSON source row, confirm its public fields and values together, connect your injected
+5. Expand **Try it on Tiramisu** to optionally review/edit one JSON source row, confirm its public fields and values together, connect your injected
    EVM wallet and click Deploy to Arkiv. The wallet confirms creation on Tiramisu.
 
 Schema JSON/MongoDB imports are not accepted. A JSON **row editor** at the final step contains
@@ -82,6 +88,14 @@ uses a snapshot and readback verifies both booleans. readonly freezes attributes
 permissionlessExtension lets anyone extend expiration. Neither flag can change after creation.
 Project namespace is the custom `ds` attribute. createdAt/updatedAt are block numbers:
 they begin at the creation block, and updatedAt tracks the latest content patch.
+
+The UI says Project name (`ds`), Lock the content (`readonly`), and Let anyone extend
+expiration (`permissionlessExtension`). Boolean values and SDK mappings remain unchanged.
+The concept examples update with the actual selected source fields. No illustrative value
+is copied into the exported model.
+
+Navigation verification: a host with Playwright can call `verifyJourney(browser, output, url)`
+from `scripts/verify-journey.mjs`. Wallet regressions remain in `scripts/verify-browser.mjs`.
 
 Disabled deployment lists concrete model blockers or the offending row value immediately above
 the button, with a review action. Unsupported requested mappings remain labelled blocked in the

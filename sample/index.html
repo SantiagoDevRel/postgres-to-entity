@@ -19,49 +19,57 @@
   <main>
     <div class="intro"><p class="eyebrow">[ SCHEMA TO ENTITIES ]</p>
       <h1>Turn PostgreSQL into Arkiv entities.</h1>
-      <p>Pick the fields you want to query. Give the resulting model to your agent.</p>
+      <p>Start with a familiar example. See how a table becomes an entity.</p>
     </div>
-    <div class="workspace">
+    <nav class="step-nav" aria-label="Build your entity model"><ol>
+      <li><button type="button" data-go-step="1" aria-current="step"><span class="step-number">1</span><span>Schema</span></button></li>
+      <li><button type="button" data-go-step="2" disabled><span class="step-number">2</span><span>Fields</span></button></li>
+      <li><button type="button" data-go-step="3" disabled><span class="step-number">3</span><span>Entity</span></button></li>
+    </ol></nav><p id="journey-status" class="sr-only" role="status" aria-live="polite">Step 1 of 3</p>
+    <div class="workspace" data-current-step="1">
       <form id="form">
-        <section class="panel input-panel" aria-labelledby="input-title">
-          <div class="panel-head"><h2 id="input-title"><span class="step">01</span> Add your schema</h2><span class="hint">Processed in your browser</span></div>
-          <div class="input-row">
-
-            <div><label for="example">Start with an example</label><select id="example"><option value="">Choose an example…</option></select></div>
-          </div>
+        <section class="panel input-panel" data-step-panel="1" aria-labelledby="input-title">
+          <div class="panel-head"><h2 id="input-title" tabindex="-1"><span class="step">01</span> Choose your starting point</h2><span class="hint">Processed in your browser</span></div>
+          <p class="hint">Choose an example, or paste your own PostgreSQL table definition.</p>
+          <select id="example" hidden aria-label="Example"><option value="">Choose an example…</option></select>
+          <div id="example-tiles" class="example-tiles" aria-label="Schema examples"></div>
           <p id="example-help" class="hint" hidden></p>
           <div class="editor-heading"><label for="source" id="source-label">CREATE TABLE statements</label><button id="open-file" class="secondary" type="button">Open schema file</button><input id="file" type="file" accept=".sql,.txt" hidden /></div>
           <textarea id="source" rows="9" spellcheck="false" autocomplete="off" autocapitalize="off" aria-describedby="format-help" placeholder="Paste your table definitions here…"></textarea>
-          <p id="format-help" class="hint">PostgreSQL CREATE TABLE definitions. Paste a schema, not rows, credentials or an entire SQL dump.</p>
-          <div class="source-actions"><button id="analyze" class="primary" type="button">Read schema <span aria-hidden="true">→</span></button><button id="try-example" class="text-button" type="button">Try event tickets</button></div>
+          <p id="format-help" class="hint">Table definitions only · .sql files supported.</p>
+          <div class="source-actions"><button id="analyze" class="primary" type="button">Continue to fields <span aria-hidden="true">→</span></button><button id="try-example" class="text-button" type="button">Use event tickets</button></div>
           <p id="input-status" class="hint" role="status" aria-live="polite"></p>
         </section>
-        <section id="configure" class="panel configure-panel" aria-labelledby="configure-title" hidden>
-          <div class="panel-head"><h2 id="configure-title"><span class="step">02</span> Choose your query fields</h2></div>
-          <p class="field-intro"><strong data-help-label="attributes" data-help="Attributes hold the fields you filter on. Expand Available filters to see every compatible operator and an example. Compatible scalar values live only in attributes; This tool does not copy them into payload. Unsupported query encodings block the model instead of silently changing your choice.">Attributes</strong> are queryable.</p><p class="field-intro"><strong data-help-label="payload" data-help="Payload holds the remaining content. This sample illustrates JSON encoding. Arkiv stores payload as bytes, and a mutable entity can replace it with patchEntity. Selecting readonly at creation freezes both attributes and payload.">Payload</strong> holds the rest.</p>
-          <p class="builtin-help" data-help-label="built-in queries" data-help="The protocol provides the entity key and owner. The SDK can retrieve an entity by key and filter by the built-in $owner attribute. You do not need duplicate custom attributes for these. The actual wallet address comes from your application, not from this schema.">Already available: entity key lookup and owner filtering.</p>
+        <section id="configure" class="panel configure-panel" data-step-panel="2" aria-labelledby="configure-title" hidden>
+          <div class="panel-head"><h2 id="configure-title" tabindex="-1"><span class="step">02</span> Decide how each field is used</h2></div>
+          <div class="concept-pair">
+            <div><h3>Find by a value <span>Attributes</span></h3><p>Use these fields in filters.</p><code>event_name = "Friday concert"</code></div>
+            <div><h3>Read the content <span>Payload</span></h3><p>Keep the rest of each row here.</p><code>{ "seat_number": 12 }</code></div>
+          </div>
+          <p class="builtin-help" data-help-label="built-in queries" data-help="The protocol provides the entity key and owner. The SDK can retrieve an entity by key and filter by the built-in $owner attribute. You do not need duplicate custom attributes for these. The actual wallet address comes from your application, not from this schema.">Entity key and owner are already queryable.</p>
           <details class="query-guide"><summary>How do filters work together?</summary>
             <ul class="filter-examples"><li>AND · every condition</li><li>OR · any condition</li><li>NOT · invert a condition</li></ul>
             <p class="hint">NOT also includes entities missing that attribute.</p>
             <a href="https://docs.arkiv.network/typescript-sdk/querying-data/#query-operators" target="_blank" rel="noreferrer">SDK filter documentation ↗</a> · <a href="https://docs.arkiv.network/json-rpc/querying-data/#query-syntax" target="_blank" rel="noreferrer">Tiramisu query syntax ↗</a>
           </details><div id="field-controls"></div>
-          <details id="refine" tabindex="-1" open><summary>Ownership and lifetime <span class="hint">Wallet and calendar</span></summary>
-            <label for="project">Project namespace · ds</label><input id="project" type="text" maxlength="128" value="my-app" />
+          <details id="refine" tabindex="-1"><summary>Project, owner &amp; expiration</summary>
+            <label for="project">Project name <span class="hint">· ds attribute</span></label><input id="project" type="text" maxlength="128" value="my-app" />
             <div id="policy-controls"></div>
           </details>
-          <p class="hint">Changing a destination updates the model below. Review public fields and actual values together before deploying.</p>
-          <button id="generate" class="primary" type="submit"><span>Build entity model</span><span aria-hidden="true">→</span></button>
+
+          <div class="step-actions"><button class="secondary" type="button" data-go-step="1">← Back</button><button id="generate" class="primary" type="submit"><span>See your entity</span><span aria-hidden="true">→</span></button></div>
           <p id="build-status" class="hint" role="status" aria-live="polite"></p>
         </section>
       </form>
-      <section class="panel result-panel" aria-labelledby="result-title" aria-busy="false" hidden>
-        <div class="panel-head"><h2 id="result-title"><span class="step">03</span> Your entity model</h2><span id="state" class="state" role="status">Waiting for a schema</span></div>
+      <section class="panel result-panel" data-step-panel="3" aria-labelledby="result-title" aria-busy="false" hidden>
+        <div class="panel-head"><h2 id="result-title" tabindex="-1"><span class="step">03</span> Your entity model</h2><span id="state" class="state" role="status">Waiting for a schema</span></div>
         <div id="result">
           <p id="result-summary"></p>
           <div id="issues" tabindex="-1"></div>
           <div id="entity-picker-row" hidden><label for="entity-picker">Entity type to explore</label><select id="entity-picker"></select></div>
-          <div id="entities"></div>
-          <div id="complete-entity"></div><section id="deploy-panel" class="deploy-panel" aria-labelledby="deploy-title"><p class="eyebrow">[ TRY ON TESTNET ]</p><h3 id="deploy-title">Create one entity on Arkiv</h3><p>A schema describes fields. Review or edit this example row to create one actual entity on Tiramisu.</p><label for="entity-row">Source row · JSON values</label><textarea id="entity-row" rows="8" spellcheck="false"></textarea><div id="constraint-review" hidden><p class="hint">PostgreSQL rules retained in this model:</p><ul id="constraint-list"></ul><label class="check"><input id="constraints-consent" type="checkbox" /><span>I checked this row against these rules. This demo does not execute SQL constraints, defaults or uniqueness checks.</span></label></div><details><summary>Review what will be sent</summary><pre id="transaction-preview" tabindex="0"></pre></details><label class="check"><input id="deploy-consent" type="checkbox" /><span>I reviewed these fields and values, including any personal data. They will be public on Tiramisu testnet.</span></label><p id="deploy-eligibility" class="hint" role="status" aria-live="polite"></p><div class="deploy-actions"><button id="deploy" class="primary" type="button" aria-describedby="deploy-eligibility" disabled>Deploy to Arkiv</button><button id="deploy-resolve" class="secondary" type="button" hidden>Review model</button></div><p id="wallet-status" class="hint" role="status" aria-live="polite"></p><p class="hint"><a href="https://hub.arkiv.network/faucet" target="_blank" rel="noreferrer">Get test GLM ↗</a> · Your wallet confirms the transaction fee.</p><details id="creation-history" hidden><summary id="creation-history-label">Creation result</summary><div id="deploy-result" aria-live="polite"></div></details></section>
+          <details id="mapping-details" class="mapping-details"><summary>Compare every field · PostgreSQL → Arkiv</summary><div id="entities"></div></details>
+          <div id="complete-entity"></div>
+          <div class="step-actions model-actions"><button class="secondary" type="button" data-go-step="2">← Edit fields</button><button id="open-handoff" class="primary" type="button">Use this model with your agent →</button></div>
           <details id="handoff" class="handoff">
             <summary><span>Copy & paste to your agent</span><span class="hint">Model, decisions and implementation instructions</span></summary>
             <p id="handoff-help" class="hint"></p>
@@ -69,11 +77,13 @@
             <p id="copy-status" class="hint" role="status" aria-live="polite"></p>
             <label for="agent-prompt">Text to give your agent</label><textarea id="agent-prompt" rows="8" readonly spellcheck="false" aria-describedby="handoff-help"></textarea>
           </details>
+          <details id="testnet-demo"><summary>Try it on Tiramisu <span class="hint">Optional · create one entity with your wallet</span></summary><section id="deploy-panel" class="deploy-panel" aria-labelledby="deploy-title"><p class="eyebrow">[ TRY ON TESTNET ]</p><h3 id="deploy-title">Create one entity on Arkiv</h3><p>A schema describes fields. Review or edit this example row to create one actual entity on Tiramisu.</p><label for="entity-row">Source row · JSON values</label><textarea id="entity-row" rows="8" spellcheck="false"></textarea><div id="constraint-review" hidden><p class="hint">PostgreSQL rules retained in this model:</p><ul id="constraint-list"></ul><label class="check"><input id="constraints-consent" type="checkbox" /><span>I checked this row against these rules. This demo does not execute SQL constraints, defaults or uniqueness checks.</span></label></div><details><summary>Review what will be sent</summary><pre id="transaction-preview" tabindex="0"></pre></details><label class="check"><input id="deploy-consent" type="checkbox" /><span>I reviewed these fields and values, including any personal data. They will be public on Tiramisu testnet.</span></label><p id="deploy-eligibility" class="hint" role="status" aria-live="polite"></p><div class="deploy-actions"><button id="deploy" class="primary" type="button" aria-describedby="deploy-eligibility" disabled>Deploy to Arkiv</button><button id="deploy-resolve" class="secondary" type="button" hidden>Review model</button></div><p id="wallet-status" class="hint" role="status" aria-live="polite"></p><p class="hint"><a href="https://hub.arkiv.network/faucet" target="_blank" rel="noreferrer">Get test GLM ↗</a> · Your wallet confirms the transaction fee.</p><details id="creation-history" hidden><summary id="creation-history-label">Creation result</summary><div id="deploy-result" aria-live="polite"></div></details></section></details>
+
         </div>
       </section>
     </div>
     <footer>
-      <p>The npm model generator runs offline. The optional demo sends only your reviewed entity values after wallet confirmation.</p>
+      <p>Model generation stays in your browser. Testnet creation is optional.</p>
       <details><summary>Supported inputs and limits</summary>
         <p>Use PostgreSQL CREATE TABLE definitions. Other database dialects, JSON schemas, data exports and complete SQL dumps are not accepted. Unsupported statements produce an explicit error.</p>
         <p>Your field selections drive deterministic rules; no LLM interprets your input. Compatible scalar query fields move into attributes, other fields stay in payload, and excluded fields leave the public model. Arrays remain in payload; the agent can design additional query projections if needed.</p>
