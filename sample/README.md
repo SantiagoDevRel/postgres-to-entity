@@ -21,6 +21,15 @@ Strict port selection; do not kill other processes to obtain a port.
 The sample consumes `vendor/postgres-to-entity-0.3.1.tgz`; it does not import sibling source.
 SDK 0.8.0 and viem are confined to the optional wallet demo. The npm model engine is offline.
 
+Sample links may include `?entity=0x...` with a 32-byte public entity key and optionally
+`&tx=0x...` with its creation transaction hash. Opening one builds the existing Event tickets
+example locally and reads the stored `event-tickets` / `tickets` entity into the existing
+creation-result panel. Returned attributes and JSON payload come directly from Tiramisu;
+they do not replace the illustrative model or edited row. A transaction link is shown only
+after its successful receipt and matching creation event are verified. No wallet connection,
+review consent or transaction is requested on page load. The converter and explicit wallet
+creation flow remain available normally when there is no entity parameter.
+
 ## Workflow
 
 The horizontal Schema → Fields → Entity navigation shows one step at a time. Completed

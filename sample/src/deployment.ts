@@ -169,6 +169,43 @@ export function initDeployment(){
       output.replaceChildren(note,link('Check transaction','https://tiramisu.explorer.arkiv.network/tx/'+hash),retry);}}finally{busy=false;lockInputs(false);connect.disabled=false;refresh();}
  });
  return {
+  async loadSample(entityKey:string,txHash?:string){
+   const version=epoch,output=$('deploy-result');
+   history.hidden=false;history.open=true;$('creation-history-label').textContent='Sample entity';
+   const verification=document.createElement('p');verification.className='hint';verification.textContent='Reading the sample entity from Tiramisu…';
+   output.replaceChildren(verification);status.textContent=verification.textContent;
+   try{
+    if(!/^0x[0-9a-fA-F]{64}$/.test(entityKey))throw Error('Enter an entity key: 0x followed by 64 hexadecimal characters.');
+    if(await rpc.getChainId()!==tiramisu.id)throw Error('RPC network mismatch.');
+    const actual=await rpc.getEntity(entityKey as `0x${string}`);
+    if(version!==epoch)return;
+    if(actual.contentType!=='application/json'||actual.attributes.ds?.value!=='event-tickets'||actual.attributes.kind?.value!=='tickets')throw Error('This entity is not an Event tickets sample from this converter.');
+    const payload:unknown=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(actual.payload));
+    if(!payload||typeof payload!=='object'||Array.isArray(payload))throw Error('The sample entity payload must be a JSON object.');
+    const title=document.createElement('h3');title.textContent='Sample entity from Tiramisu';
+    const key=document.createElement('p');key.textContent='Entity key: '+actual.key;
+    const links=document.createElement('div');links.className='actions';links.append(link('Block Explorer · entity','https://tiramisu.explorer.arkiv.network/entity/'+actual.key),link('Data Explorer - entity','https://data.arkiv.network/?q='+encodeURIComponent('$key = key('+actual.key+')')));
+    const note=document.createElement('p');note.className='hint';note.textContent='Fetched directly from Tiramisu. These stored values are separate from the editable example row above.';
+    const data=document.createElement('pre');data.tabIndex=0;data.textContent=JSON.stringify({key:actual.key,owner:actual.owner,creator:actual.creator,createdAt:actual.createdAt.toString(),updatedAt:actual.updatedAt.toString(),expiresAt:actual.expiresAt.toString(),contentType:actual.contentType,creationFlags:actual.creationFlags,attributes:actual.attributes,payload},(_,v)=>typeof v==='bigint'?v.toString():v,2);
+    verification.textContent='Sample entity read successfully. No wallet connection or transaction was requested.';
+    output.replaceChildren(title,key,links,note,verification,data);status.textContent=verification.textContent;
+    if(txHash){
+     try{
+      if(!/^0x[0-9a-fA-F]{64}$/.test(txHash))throw Error('Invalid transaction hash.');
+      const receipt=await rpc.getTransactionReceipt({hash:txHash as `0x${string}`});
+      if(version!==epoch)return;
+      if(receipt.status!=='success'||receipt.blockNumber!==actual.createdAt)throw Error('The transaction does not confirm this entity creation.');
+      const matched=receipt.logs.some(log=>{
+       if(log.address.toLowerCase()!=='0x4400000000000000000000000000000000000044')return false;
+       try{const event=decodeEventLog({abi:ENTITY_EVENTS_ABI,topics:log.topics,data:log.data});return event.eventName==='EntityCreated'&&event.args.entityKey.toLowerCase()===actual.key.toLowerCase()&&event.args.owner.toLowerCase()===actual.creator.toLowerCase();}catch{return false;}
+      });
+      if(!matched)throw Error('The transaction has no matching entity creation event.');
+      links.prepend(link('Block Explorer · transaction','https://tiramisu.explorer.arkiv.network/tx/'+txHash));
+      verification.textContent='Sample entity and its creation transaction verified from Tiramisu. No wallet connection or transaction was requested.';status.textContent=verification.textContent;
+     }catch(error){if(version===epoch)verification.textContent='Sample entity read successfully. Its transaction link could not be verified: '+message(error);}
+    }
+   }catch(error){if(version===epoch){verification.textContent='Could not load the sample entity: '+message(error);status.textContent=verification.textContent;}}
+  },
   setFlags(next:DemoFlags){flags={...next};epoch++;consent.checked=false;clearPreviousFeedback();refresh();},
   invalidate(){fresh=false;epoch++;consent.checked=false;clearPreviousFeedback();refresh();},
   setModel(e:EntityDesign|undefined,m:EntityModel,p:{owner:string;expiration:string}|undefined){

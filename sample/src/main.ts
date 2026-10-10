@@ -23,6 +23,7 @@ const sourceTypes = new Map<string, string>();
 const policies = new Map<string, { owner: string; expiration: string }>();
 const creationFlags = new Map<string, DemoFlags>();
 const key = (table: string, column: string) => JSON.stringify([table, column]);
+type LinkedSample = { entity: string; tx?: string };
 let model: EntityModel | undefined;
 let markdown = '';
 let current = false;
@@ -67,7 +68,7 @@ function stale(schemaChanged = false) {
   }
 }
 function formatHelp() { el('source-label').textContent = 'PostgreSQL · CREATE TABLE statements'; }
-function loadExample(name: keyof typeof examples) {
+function loadExample(name: keyof typeof examples, linkedSample?: LinkedSample) {
   stale(true);
   const example = examples[name].request;
   source.value = example.sql;
@@ -77,7 +78,7 @@ function loadExample(name: keyof typeof examples) {
   example.privateFields?.forEach(({table,column})=>choices.set(key(table,column),'exclude'));
 
   el('example-help').textContent = examples[name].explanation; el('example-help').hidden = false;
-  formatHelp(); run(true);
+  formatHelp(); run(true,false,linkedSample);
 }
 function request(readOnly: boolean): ModelRequest {
   if (!source.value.trim()) throw Error('Paste a schema or choose an example first.');
@@ -283,7 +284,7 @@ function render(result: EntityModel, sourceModel: EntityModel, text: string) {
   exportsEnabled(true);
   el('build-status').textContent = designReady ? 'Mapping updated. Continue to see your entity.' : 'Draft updated. See your entity to review decisions.';
 }
-function run(readOnly: boolean, advance = false) {
+function run(readOnly: boolean, advance = false, linkedSample?: LinkedSample) {
   deployment.invalidate();
   journey.invalidateModel();
   finishWorker(); current = false; exportsEnabled(false); closeHelp();
@@ -316,7 +317,11 @@ function run(readOnly: boolean, advance = false) {
         el('build-status').textContent = '';
         // A previously generated model remains explicitly stale until the new selections are built.
         if(model)setState('Model needs rebuilding','stale');
-      } else {render(data.model, data.sourceModel, data.markdown);if(advance||readOnly)journey.show(3);}
+        if(linkedSample)run(false,true,linkedSample);
+      } else {
+        render(data.model, data.sourceModel, data.markdown);if(advance||readOnly)journey.show(3);
+        if(linkedSample){journey.reveal(el('creation-history'));void deployment.loadSample(linkedSample.entity,linkedSample.tx);}
+      }
     };
     activeWorker.onerror = fail; timer = setTimeout(fail, 8000); activeWorker.postMessage(input);
   } catch { fail(); }
@@ -381,3 +386,6 @@ for (const [value, example] of Object.entries(examples)) {
 }
 el('open-deploy').addEventListener('click',()=>{el<HTMLDetailsElement>('testnet-demo').open=true;el('testnet-demo').scrollIntoView({block:'start'});el('entity-row').focus({preventScroll:true});});
 installHelp();exportsEnabled(false);button.disabled=true;themeLabel();
+const sampleParameters=new URLSearchParams(window.location.search);
+const sampleEntity=sampleParameters.get('entity');
+if(sampleEntity!==null){el<HTMLSelectElement>('example').value='tickets';loadExample('tickets',{entity:sampleEntity,tx:sampleParameters.get('tx')??undefined});}
