@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.1
+
+- Clarify versioned installation and archive verification; guard source-map metadata and preserve dated evidence.
+
+> Historical version entries below are preserved as recorded; use README.md for the current release.
+
 ## 1.0.0
 
 Breaking: output is now arkiv-entity-model/3 for SDK 1.0.0 and Rabdi.
