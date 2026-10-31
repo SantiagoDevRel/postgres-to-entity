@@ -1,14 +1,16 @@
+> Historical dated evidence, preserved from 1389f58. For current API and installation guidance, use the root README and AGENTS.md.
+
 # Actual row destinations — 2026-09-11
 
 The final testnet review now separates the source-row editor from the resulting Attributes
-and Binary data. renderRowPreview receives prepareRow.display; it does not remap fields or use
+and Payload. renderRowPreview receives prepareRow.display; it does not remap fields or use
 illustrative values. Every refresh clears the preview before attempting validation, so invalid
 JSON, model changes and pending confirmation cannot leave a misleading current preview.
 Creation flags have a decorative, aria-hidden flag emoji; control labels stay unchanged.
 
 Verified locally with TypeScript/Vite build, 14 row/filter tests, and the full wallet fixture
 (7 simulated creations with SDK calldata and readback). Dedicated browser tests cover edited
-values, buyer_email moving binary data → attribute → excluded, invalid JSON clearing stale content,
+values, buyer_email moving payload → attribute → excluded, invalid JSON clearing stale content,
 consent reset, and displayed output matching the encoder. No real wallet transaction or GLM spent.
 
 Twenty viewport/theme probes cover 320/390/519/520/521/682/683/684/768/1440, with screenshots

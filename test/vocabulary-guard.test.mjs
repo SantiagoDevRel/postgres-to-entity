@@ -78,3 +78,16 @@ test('dated historical allowances require exact file and content hash', () => {
     assert.ok(violations(entry.file, original + '\n' + ('pay' + 'load')).length);
   }
 });
+
+test('both September 11 reports retain exact history without allowing a new occurrence', () => {
+  const list = JSON.parse(readFileSync(path.join(root, 'vocabulary-history.json'), 'utf8'));
+  const reports = ['sample/GUIDED-UX-VERIFICATION.md', 'sample/ROW-PREVIEW-VERIFICATION.md'];
+  for (const file of reports) {
+    assert.ok(list.some(entry => entry.file === file), file);
+    const original = readFileSync(path.join(root, file), 'utf8');
+    assert.deepEqual(violations(file, original), []);
+    assert.ok(violations('sample/new-verification.md', original).length);
+    assert.ok(violations(file, original + '\nNew ' + ('pay' + 'load')).length);
+  }
+  console.log(JSON.stringify({ restoredDatedReports: reports.length, copiedElsewhereRejected: true, appendedNewOccurrenceRejected: true }));
+});
