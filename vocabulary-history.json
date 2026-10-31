@@ -1,0 +1,46 @@
+[
+  {
+    "file": "sample/CONCEPT-UX-VERIFICATION.md",
+    "revision": "1389f58a7d3db44c555a59965e1b74172e6c9ce1",
+    "sha256": "8a955d673af1bfe193865e594c29a62f2de814291f3b79dd5b5ba12a655decdd",
+    "lines": [
+      "  attribute table and JSON pay\u006coad. The sample mirrors that vertical structure in a small",
+      "  The first source table supplies a representative query field and pay\u006coad field; ds/kind"
+    ]
+  },
+  {
+    "file": "sample/EDITING-VERIFICATION.md",
+    "revision": "1389f58a7d3db44c555a59965e1b74172e6c9ce1",
+    "sha256": "c1af0646269c0becd661f4bb62b235ed11a555348994502ed9e9dcf91c1e7ca0",
+    "lines": [
+      "  rejects overflow without truncating, and removes the attribute limit for pay\u006coad fields."
+    ]
+  },
+  {
+    "file": "sample/VERIFICATION.md",
+    "revision": "1389f58a7d3db44c555a59965e1b74172e6c9ce1",
+    "sha256": "5c96b6312bff6c265ef4fe0bc313b5f03a25c2285289b813bbe4d041a2eed0d3",
+    "lines": [
+      "  no duplicate scalar pay\u006coad fields and unsupported-source rejection passed.",
+      "- Both receipts succeeded and SDK readback matched owner, creator, pay\u006coad and typed attributes."
+    ]
+  },
+  {
+    "file": "sample/GUIDED-UX-VERIFICATION.md",
+    "revision": "1389f58a7d3db44c555a59965e1b74172e6c9ce1",
+    "sha256": "a1c3d12aed403e111d29d708a8da25eb4741b408415077264050efe79a7ccfd3",
+    "lines": [
+      "readable Pay\u006coad using examples derived from current selections. Step 3 puts both within",
+      "pay\u006coad and attributes but no creation flags. The demo exposes them in step 3 and readback."
+    ]
+  },
+  {
+    "file": "sample/ROW-PREVIEW-VERIFICATION.md",
+    "revision": "1389f58a7d3db44c555a59965e1b74172e6c9ce1",
+    "sha256": "4f7f6ccf16fba5bfd9c46df985b1bc66370ebaee4dd2da70127ed2730662bf40",
+    "lines": [
+      "and Pay\u006coad. renderRowPreview receives prepareRow.display; it does not remap fields or use",
+      "values, buyer_email moving pay\u006coad → attribute → excluded, invalid JSON clearing stale content,"
+    ]
+  }
+]

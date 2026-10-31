@@ -1,15 +1,15 @@
 # postgres-to-entity
 
 Convert PostgreSQL `CREATE TABLE` definitions into **Arkiv entities** for the Web3 database.
-Version 1.0.0 produces `arkiv-entity-model/3` for `@arkiv-network/sdk` 1.0.0 on Rabdi.
+Version 1.0.1 produces `arkiv-entity-model/3` for `@arkiv-network/sdk` 1.0.0 on Rabdi.
 The converter is deterministic and offline. It does not connect, sign, import rows or write.
 
 ## Install and run
 
-Node 22.12 through 23. Install the published 1.0.0 release from npm:
+Node 22.12 through 23. Install version 1.0.1 from npm:
 
 ```sh
-npm install postgres-to-entity@1.0.0 @arkiv-network/sdk@1.0.0 viem
+npm install postgres-to-entity@1.0.1 @arkiv-network/sdk@1.0.0 viem
 npx postgres-to-entity schema.sql --format markdown --out NEW_MODEL.md
 ```
 
@@ -137,3 +137,4 @@ Consumer checks install the actual archive, including the sample and shared lane
 minimum contract fixtures. Live integration and idempotent reseeding use
 `scripts/seed-rabdi.mjs` with the dedicated funded test wallet injected by the secrets runner.
 Read `AGENTS.md` before changing invariants. Breaking changes are in `CHANGELOG.md`.
+

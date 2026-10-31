@@ -1,3 +1,5 @@
+> Historical dated evidence, preserved from 1389f58. For current API and installation guidance, use the root README and AGENTS.md.
+
 # Guided workshop UX — 2026-09-11
 
 Three active steps: Schema → Fields → Entity. The form and row editor remain mounted.

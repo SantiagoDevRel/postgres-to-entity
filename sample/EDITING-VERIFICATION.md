@@ -1,3 +1,5 @@
+> Historical dated evidence, preserved from 1389f58. For current API and installation guidance, use the root README and AGENTS.md.
+
 # Field editing and filter guide — 2026-09-10
 
 Supersedes the earlier two-checkbox review workflow documented in VERIFICATION.md.

@@ -1,3 +1,5 @@
+> Historical dated evidence, preserved from 1389f58. For current API and installation guidance, use the root README and AGENTS.md.
+
 # Workshop concept previews — 2026-09-11
 
 - Inspected the supplied authenticated Sourcify entity in the browser, including its

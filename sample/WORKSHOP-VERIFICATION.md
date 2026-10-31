@@ -1,3 +1,5 @@
+> Historical dated evidence, preserved from 1389f58. For current API and installation guidance, use the root README and AGENTS.md.
+
 # Workshop controls — 2026-09-10
 
 - Compact filter names; no per-field prose, query examples or nullable/duplicate labels.

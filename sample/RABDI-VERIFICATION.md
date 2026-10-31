@@ -1,3 +1,5 @@
+> Historical dated evidence, preserved from 1389f58. For current API and installation guidance, use the root README and AGENTS.md.
+
 # Rabdi release candidate verification - 2026-10-31
 
 Candidate: `postgres-to-entity@1.0.0`, `arkiv-entity-model/3`, SDK 1.0.0.

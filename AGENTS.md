@@ -1,6 +1,8 @@
 Edit instructions only in AGENTS.md; CLAUDE.md only imports this file.
 
-# AGENTS.md - postgres-to-entity 1.0
+# AGENTS.md - postgres-to-entity 1.0.1
+
+Install `npm install --save-exact postgres-to-entity@1.0.1 @arkiv-network/sdk@1.0.0 viem`.
 
 ## Purpose
 
@@ -64,7 +66,7 @@ Never exceed two send attempts for an operation. Keep all five COMMON retry case
 ## Verification and release
 
 Node 22.12-23. npm ci; npm test; npm run typecheck; npm run lint; npm run build.
-Release verification: bash scripts/verify-dgx.sh --registry tests the published 1.0.0
+Release verification: bash scripts/verify-dgx.sh --registry tests the registry release matching package.json
 package in clean consumers. Pre-publication checks omit --registry and test npm pack.
 CLI exits: 0 modelled, 2 needs-input, 3 blocked, 1 I/O error. Output creation is exclusive.
 Unit tests preserve parser/privacy/identity/null/byte-bound regressions and lane M fixtures.
@@ -73,3 +75,4 @@ A network reset may require reseeding; never delete another entity or resource.
 First delivery is branch/PR, packed archive and sample preview. Publication, merge and
 production promotion require a separate review approval. Do not claim registry availability
 until npm view confirms it. No new skill publication or alternate database adapters.
+

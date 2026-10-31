@@ -1,3 +1,5 @@
+> Historical dated evidence, preserved from 1389f58. For current API and installation guidance, use the root README and AGENTS.md.
+
 # Actual row destinations — 2026-09-11
 
 The final testnet review now separates the source-row editor from the resulting Attributes

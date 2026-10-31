@@ -1,3 +1,5 @@
+> Historical dated evidence, preserved from 1389f58. For current API and installation guidance, use the root README and AGENTS.md.
+
 # Public release verification — 2026-09-10 UTC
 
 Deployment-button follow-up (2026-09-10): reproduced a connected wallet with row consent
