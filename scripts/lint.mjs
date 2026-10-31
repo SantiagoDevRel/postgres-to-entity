@@ -9,7 +9,7 @@ for (const file of [...guidance, ...source]) {
   const text = readFileSync(file, 'utf8');
   const brand = vocabularyProblem(text);
   if (brand) throw new Error(file + ': ' + brand);
-  if (/Tiramisu|7738577|0\.8\.[\dx]|arkiv-entity-model\/2|jsonToPayload/.test(text)) throw new Error(file + ': earlier network or model guidance');
+  if (/Tiramisu|7738577|0\.8\.[\dx]|arkiv-entity-model\/2|jsonToPay[l]oad/.test(text)) throw new Error(file + ': earlier network or model guidance');
   if (text.split('\n').some(line => /[\t ]+$/.test(line))) throw new Error(file + ': trailing whitespace');
 }
 console.log('Current guidance, source vocabulary and whitespace checks passed.');

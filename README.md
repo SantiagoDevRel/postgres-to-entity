@@ -137,3 +137,5 @@ Consumer checks install the actual archive, including the sample and shared lane
 minimum contract fixtures. Live integration and idempotent reseeding use
 `scripts/seed-rabdi.mjs` with the dedicated funded test wallet injected by the secrets runner.
 Read `AGENTS.md` before changing invariants. Breaking changes are in `CHANGELOG.md`.
+
+Release status: postgres-to-entity@1.0.0 is published for SDK 1.0.0 / Rabdi. This branch prepares 1.0.1; it has not been published. Samples retain their exact registry pins until the phase-2 release sequence.

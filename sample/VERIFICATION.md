@@ -1,3 +1,5 @@
+> Historical evidence for an earlier release. It is not current SDK 1.0/Rabdi guidance or evidence of the pending 1.0.1 patch. Use the root README and AGENTS.md for the published 1.0.0 baseline and the phase-1 changes.
+
 # Public release verification — 2026-09-10 UTC
 
 Deployment-button follow-up (2026-09-10): reproduced a connected wallet with row consent
@@ -23,7 +25,7 @@ successful. Only npm registry authentication remains pending; the public package
 - Archive SHA256: `19f865af5d8e27ad9ae6f626ab1194dbbe8e5a39c06c54d72f129c670880e68d`.
   19,004 bytes, 13 entries. Sample and MCP lockfiles pin the same archive.
 - Fresh consumer installed the public release URL; ESM API, CLI, correct boolean attributes,
-  no duplicate scalar payload fields and unsupported-source rejection passed.
+  no duplicate scalar binary data fields and unsupported-source rejection passed.
 - 57 tests in the standalone public converter repository; typecheck/build passed.
   The original workspace's broader historical suite passed 128 tests. 8 sample row tests passed.
 - Public demo regression passed 13 widths: 320/390/519/520/521/668/669/670/682/683/684/768/1440,
@@ -35,7 +37,7 @@ successful. Only npm registry authentication remains pending; the public package
 - Actual Rabby creations (Tiramisu 7738577 only, no transfers):
   - Local preview: https://tiramisu.explorer.arkiv.network/tx/0xb9a5cb236fb5de8619186c12c97c3df1ecb45804b6d0021f6e07c92bd333979b
   - Public demo: https://tiramisu.explorer.arkiv.network/tx/0xed9da77e37390ed6de36d99d6f9addf706751214a4b08a16b129f17b5c7f1133
-- Both receipts succeeded and SDK readback matched owner, creator, payload and typed attributes.
+- Both receipts succeeded and SDK readback matched owner, creator, binary data and typed attributes.
   Public demo entity: `0x42f225b8fe53a91a6b778259210a1c7f5b0132bde897534c6b6d31717389e703`.
   Edited row: seat 24, event_name "Workshop demo", used false. Buyer email excluded.
 - Each fee: 0.000121497600202496 GLM. Total: **0.000242995200404992 GLM**, confirmed

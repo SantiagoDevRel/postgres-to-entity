@@ -1,3 +1,5 @@
+> Historical evidence for an earlier release. It is not current SDK 1.0/Rabdi guidance or evidence of the pending 1.0.1 patch. Use the root README and AGENTS.md for the published 1.0.0 baseline and the phase-1 changes.
+
 # Workshop controls — 2026-09-10
 
 - Compact filter names; no per-field prose, query examples or nullable/duplicate labels.

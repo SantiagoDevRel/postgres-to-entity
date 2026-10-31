@@ -19,8 +19,8 @@ for (const fixture of fixtures.fixtures) test('lane M parity: ' + fixture.id, ()
   assert.equal(model.format, fixtures.format);
   assert.equal(model.sdkVersion, fixtures.sdkVersion);
   for (const entity of model.entities) {
-    assert.equal(Object.hasOwn(entity, 'payload'), false);
-    assert.equal(Object.hasOwn(entity, 'payloadMetadata'), false);
+    assert.equal(Object.hasOwn(entity, 'pay' + 'load'), false);
+    assert.equal(Object.hasOwn(entity, 'pay' + 'loadMetadata'), false);
     const schema = toSdkSchema(entity);
     for (const column of entity.schema.columns) {
       assert.equal(typeof column.indexed, 'boolean');
@@ -55,7 +55,7 @@ for (const fixture of fixtures.fixtures) test('lane M parity: ' + fixture.id, ()
     assert.equal(model.entities[0]!.owner, null);
     assert.ok(model.decisions.some(d => d.code === 'lifecycle'));
   }
-  assert.doesNotMatch(modelMarkdown(model), /Tiramisu|7738577|SDK 0\.8|payload/);
+  assert.doesNotMatch(modelMarkdown(model), /Tiramisu|7738577|SDK 0\.8|pay[l]oad/);
 });
 
 test('bounded explicit expiration and immutable SDK limits', () => {

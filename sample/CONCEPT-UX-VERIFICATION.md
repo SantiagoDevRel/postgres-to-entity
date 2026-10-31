@@ -1,11 +1,13 @@
+> Historical evidence for an earlier release. It is not current SDK 1.0/Rabdi guidance or evidence of the pending 1.0.1 patch. Use the root README and AGENTS.md for the published 1.0.0 baseline and the phase-1 changes.
+
 # Workshop concept previews — 2026-09-11
 
 - Inspected the supplied authenticated Sourcify entity in the browser, including its
-  attribute table and JSON payload. The sample mirrors that vertical structure in a small
+  attribute table and JSON binary data. The sample mirrors that vertical structure in a small
   excerpt, using existing Arkiv palette, fonts and help lifecycle. No reference data is copied.
 - Both concept cards support mouse hover. View entity supports keyboard and touch; Escape,
   blur and outside tap dismiss. Replaced previews dispose their previous hover listeners.
-  The first source table supplies a representative query field and payload field; ds/kind
+  The first source table supplies a representative query field and binary data field; ds/kind
   provide context. Example values never enter exports or transactions.
 - Primary Deploy to Tiramisu opens and focuses the row review. Agent handoff follows the
   testnet section, closed by default and reset on a new schema. Wallet guards are unchanged.

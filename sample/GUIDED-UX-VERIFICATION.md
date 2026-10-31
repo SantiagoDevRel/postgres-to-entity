@@ -5,7 +5,7 @@ Back navigation preserves selected fields, edited row values, flags and policies
 SQL invalidates forward steps; errors reveal the correct step and collapsed controls.
 
 Four example tiles form two balanced rows. Step 2 introduces filterable Attributes and
-readable Payload using examples derived from current selections. Step 3 puts both within
+readable Binary data using examples derived from current selections. Step 3 puts both within
 one entity frame; metadata, mapping, handoff and optional testnet action disclose details
 progressively. Flags remain visible with human-readable labels and actual boolean values.
 
@@ -37,4 +37,4 @@ Validation:
   404. Codex coverage check confirmed all four requested items.
 
 Data Explorer observation: the inspected entity card displayed owner, creator, expiration,
-payload and attributes but no creation flags. The demo exposes them in step 3 and readback.
+binary data and attributes but no creation flags. The demo exposes them in step 3 and readback.

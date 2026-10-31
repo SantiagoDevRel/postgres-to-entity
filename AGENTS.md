@@ -73,3 +73,5 @@ A network reset may require reseeding; never delete another entity or resource.
 First delivery is branch/PR, packed archive and sample preview. Publication, merge and
 production promotion require a separate review approval. Do not claim registry availability
 until npm view confirms it. No new skill publication or alternate database adapters.
+
+Release status: postgres-to-entity@1.0.0 is published for SDK 1.0.0 / Rabdi. This branch prepares 1.0.1; it has not been published. Samples retain their exact registry pins until the phase-2 release sequence.

@@ -1,3 +1,5 @@
+> Historical evidence for an earlier release. It is not current SDK 1.0/Rabdi guidance or evidence of the pending 1.0.1 patch. Use the root README and AGENTS.md for the published 1.0.0 baseline and the phase-1 changes.
+
 # Field editing and filter guide — 2026-09-10
 
 Supersedes the earlier two-checkbox review workflow documented in VERIFICATION.md.
@@ -10,7 +12,7 @@ paths (`.env`, keys.json, source files, package.json, config.json, vercel.json) 
   intact; the exported `attribute-limit` decision requires enforcement in the consuming app.
   Archive SHA256: `8c101c62b28a77b09ef9a3fe646402c5fb8e0cd6d900c82f284d74408124f17d`.
 - The sample displays the 128 UTF-8 byte limit, measures the exact value before encoding,
-  rejects overflow without truncating, and removes the attribute limit for payload fields.
+  rejects overflow without truncating, and removes the attribute limit for binary data fields.
 - Destination changes regenerate the mapping. The JSON editor preserves shared source values;
   excluded fields are removed from the current editor/cache. Invalid JSON stays visible.
 - One final confirmation covers fields and values for one public write. Privacy and byte-limit

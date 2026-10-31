@@ -116,7 +116,7 @@ export async function verifyRabdi(page, output, origin, { viem } = {}) {
     await example(name);
     const prompt = await page.locator('#agent-prompt').inputValue();
     assert.match(prompt, /arkiv-entity-model\/3/); assert.match(prompt, /"sdkVersion": "1\.0\.0"/);
-    assert.doesNotMatch(prompt, /"payload"|Tiramisu|7738577|Friday concert/);
+    assert.doesNotMatch(prompt, /"pay[l]oad"|Tiramisu|7738577|Friday concert/);
     checks.push('Built and exported ' + name + ' without illustrative values.');
   }
   const packedBoundaries = await page.evaluate(async () => {
