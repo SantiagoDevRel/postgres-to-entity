@@ -19,8 +19,12 @@ encodings before signing. Preserve null/empty distinctions; JSON uses {value:...
 arrays use {values,lowerBounds}. Source PK/FK values remain separate from system keys.
 
 Invalidate consent on model/row/account/network/flags changes and recheck before send.
-Explicit gas, gasPrice, nonce/latest and successful receipt are mandatory. Retain an
-uncertain transaction hash, block resends and permit read-only reconciliation.
+Explicit gas, gasPrice, nonce/latest and successful receipt are mandatory. Obtain an
+unsigned estimate of the exact SDK request at latest; stop if it fails. Use gas equal
+to max(1000000n,2*estimate), capped at half the latest block gas limit; refuse larger rows.
+Estimate through the wallet RPC so private row data never reaches the server proxy.
+Never automatically retry. An uncertain send without a hash must also lock resubmission.
+Retain an available transaction hash, block resends and permit read-only reconciliation.
 Compare typed readback and creation flags with the submitted values. Source constraints
 require explicit review, not a claim of automatic SQL constraint enforcement.
 

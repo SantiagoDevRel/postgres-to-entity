@@ -1,9 +1,19 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { test } from 'node:test';
 import { generateModel, modelMarkdown, MAX_LIFETIME_BLOCKS, toSdkSchema } from './postgres.ts';
 
 const fixtures = JSON.parse(readFileSync(new URL('./model-fixtures.json', import.meta.url), 'utf8'));
+test('lane M complete JSON and Markdown outputs remain frozen to the reviewed candidate', () => {
+  const full = fixtures.fixtures.map((fixture: { id: string; input: unknown }) => {
+    const model = generateModel(fixture.input);
+    return { id: fixture.id, input: fixture.input, model, markdown: modelMarkdown(model) };
+  });
+  const snapshot = JSON.stringify({ package: 'postgres-to-entity', version: '1.0.0', fixtures: full }, null, 2);
+  // d659433 handoff: changing this contract requires lane M's explicit agreement.
+  assert.equal(createHash('sha256').update(snapshot).digest('hex'), '236b9f8a374c1f20d143ad5dc094a4715d492adec7a4ad2bddcb625d74de43fa');
+});
 for (const fixture of fixtures.fixtures) test('lane M parity: ' + fixture.id, () => {
   const model = generateModel(fixture.input);
   assert.equal(model.format, fixtures.format);
@@ -83,4 +93,26 @@ test('serial source types retain their implicit non-null constraint without inve
   assert.deepEqual(model.entities[0]!.schema.columns.map(c => [c.sourceType, c.nullable, c.nullEncoding]), [
     ['smallserial', false, 'forbidden'], ['serial', false, 'forbidden'], ['bigserial', false, 'forbidden'],
   ]);
+});
+
+test('relationship schema names obey the 128 UTF-8 byte boundary', () => {
+  for (const size of [128, 129]) {
+    const model = generateModel({
+      sql: 'CREATE TABLE t (id INTEGER PRIMARY KEY, tags INTEGER[]);',
+      project: 'é'.repeat(60) + 'a'.repeat(size - 127), filters: [{ table: 't', column: 'tags', operator: 'contains' }],
+      privacyReviewed: true, policies: [{ table: 't', owner: 'Connected wallet', expiration: 'Bounded', expirationBlocks: 100 }],
+    });
+    const relation = model.entities.find(e => e.kind === 't_tags')!;
+    assert.equal(Buffer.byteLength(relation.schema.name), size);
+    assert.equal(model.blockers.some(b => b.code === 'schema-name-budget'), size > 128);
+    assert.equal(model.status === 'blocked', size > 128);
+    if (size === 128) assert.doesNotThrow(() => toSdkSchema(relation));
+  }
+});
+
+test('projects cannot use the reserved triple-slash namespace', () => {
+  const model = generateModel({ sql: 'CREATE TABLE t (id INTEGER PRIMARY KEY);', project: '///reserved', filters: [], privacyReviewed: true,
+    policies: [{ table: 't', owner: 'Connected wallet', expiration: 'Bounded', expirationBlocks: 100 }] });
+  assert.equal(model.status, 'blocked');
+  assert.match(model.blockers.map(b => b.message).join(' '), /reserved.*\/\/\//i);
 });

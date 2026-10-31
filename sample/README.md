@@ -37,16 +37,19 @@ and owner. Neither endpoint returns an access key or upstream transport error.
 Wallet writes use the Rabdi RPC already configured in the user's wallet. Get a free
 access key at https://hub.arkiv.network/access-keys and test GLM at
 https://hub.arkiv.network/faucet. Never provide private keys to the browser.
-Creation supplies explicit nonce (latest), gas=1000000n and current gasPrice, checks a
-successful receipt, and compares all submitted typed columns on readback.
-An uncertain transaction retains its hash and blocks resubmission. A revert at the gas
+Creation estimates the exact unsigned SDK request through the wallet RPC at latest,
+stopping on errors. It supplies a fresh nonce (latest), network gasPrice, and
+gas=max(1000000n,2*estimate), capped at 50% of the latest block gas limit. Larger rows
+are refused with a split/reduce message. It checks a successful receipt and compares
+all submitted typed columns on readback. Row data never enters the server read proxy.
+An uncertain transaction blocks resubmission, including when no hash returns. A revert at the gas
 limit requires a larger explicit limit; no automatic retry is performed. If state
 reads report 'arkiv serves state at the chain head only', use latest or pending.
 
 ## Reseed and verify
 
 From the repository root, inject ARKIV_ACCESS_KEY_A and TEST_P2E wallet via the secrets
-runner, then run node scripts/seed-rabdi.mjs. It queries the fixed source identity and
+runner, then run node --experimental-strip-types scripts/seed-rabdi.mjs. It queries the fixed source identity and
 owner before creating, verifies the generated schema on chain, and checks a successful
 receipt. A repeated seed performs zero writes. It never uses the funder.
 

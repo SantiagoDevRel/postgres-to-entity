@@ -16,10 +16,18 @@ on the DGX host; no local dependency installation is needed.
 ARKIV_ACCESS_KEY_A and only the funded TEST_P2E wallet through the secrets runner.
 It checks the source identity and owner before creating and verifies receipt/read/query.
 Repeat runs return the existing verified entity without writing.
+Use `node --experimental-strip-types scripts/seed-rabdi.mjs` (and the same flag for
+the live verification scripts) so the shared TypeScript policy also runs on Node 22.12.
 
-`verify-rabdi-lifetime.mjs` is a deliberate negative integration probe: it sends one
-over-limit expiration, requires an authoritative reverted receipt and the specific
-ExpiryBeyondMaxLifetime error, and never retries. Run it only as an authorized test.
+`verify-large-rabdi.mjs` writes a generated-schema entity containing 70,000 nonzero
+binary bytes through the same unsigned-request policy used by the sample. It requires
+TEST_P2E and Key A, checks successful receipt, exact byte readback and indexed query,
+and repeats without writing. `rabdi-wallet-policy.mjs` adapts that policy to the local
+lane signer without printing credentials. Both use zero automatic retries.
+
+`verify-rabdi-lifetime.mjs` now checks that an over-limit expiration fails unsigned
+estimation before any signing. The earlier live reverted-receipt boundary proof is
+preserved in the release verification evidence; this command never bypasses estimation.
 
 Browser acceptance is exported by `sample/scripts/verify-rabdi.mjs`. Supply an isolated
 Playwright context in an owned background Chrome window and the existing Viem module.

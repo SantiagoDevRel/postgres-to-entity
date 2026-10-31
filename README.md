@@ -100,10 +100,12 @@ server-side. Wallet writes use the user's configured RPC. Get a free
 
 For application writes, use SDK 1.0's `createEntity(schema, values, options, txParams)`:
 explicit nonce from `eth_getTransactionCount(address, "latest")`, gas at least
-`1000000n`, and current `gasPrice`. Increase gas for larger entities, retaining at least
-2x measured headroom. Check `receipt.status === "success"` before claiming creation.
+`1000000n`, and current `gasPrice`. Estimate the exact unsigned request at `latest` first;
+stop on estimation errors. Use `max(1000000n, 2n * estimate)` and refuse or split writes
+exceeding 50% of the latest block gas limit. Check `receipt.status === "success"`
+before claiming creation; retain at least 2x headroom for measured large entities.
 A revert at the gas limit indicates under-estimation. At most one retry is allowed,
-only after an authoritative reverted receipt; never resend a successful or uncertain write.
+only after an authoritative gas-exhausted reverted receipt; never resend a successful or uncertain write.
 If Rabdi reports `arkiv serves state at the chain head only`, read state with `latest`
 or `pending`; historical block hashes, `safe` and `finalized` are unsupported for those reads.
 MissingAccessKeyError means a server/client access key must be configured, not embedded in a bundle.

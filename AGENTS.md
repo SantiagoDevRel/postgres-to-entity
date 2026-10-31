@@ -31,7 +31,8 @@ ordinal columns and an explicit consistency decision; the sample stores arrays.
 
 attributeLimits is the compatible input name for explicit queried text limits of
 1-128 UTF-8 bytes. Preserve the source type, reject oversized data, never truncate
-or silently reroute. Named schemas allow 31 columns and 128-byte schema names.
+or silently reroute. Named schemas allow 31 columns and 128-byte schema names,
+including relationship schemas. Project names cannot use the reserved /// prefix.
 Blocked models are never executable; unresolved decisions remain in JSON/Markdown.
 
 Policies preserve owner and descriptive expiration and require expirationBlocks
@@ -47,7 +48,9 @@ test GLM: https://hub.arkiv.network/faucet. Never request private keys or wallet
 Never persist or upload user schemas or rows. Render identifiers as text.
 Illustrations never enter model exports or transaction data; only the reviewed row editor does.
 
-Every write passes explicit nonce from latest, gas >= 1000000n and current gasPrice.
+Estimate the exact unsigned request at latest; stop on errors. Every write passes
+fresh nonce from latest, current gasPrice and gas=max(1000000n,2*estimate), never above
+50% of the latest block gas limit. Split or refuse oversized writes before signing.
 Check receipt.status === success. A revert at the gas limit requires more gas.
 Never retry a successful/uncertain write. Rabdi head-only state errors require latest
 or pending for state reads. Keep exact SDK calls grounded in installed 1.0.0 source.

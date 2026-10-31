@@ -27,7 +27,7 @@ if (built && run('pack', ['pack', '--pack-destination', 'sample/vendor'])) {
   run('sample-lock', ['install', './vendor/postgres-to-entity-1.0.0.tgz', '--package-lock-only', '--ignore-scripts', '--no-audit', '--no-fund'], join(root, 'sample'));
   if (run('sample-install', ['ci', '--no-audit', '--no-fund'], join(root, 'sample'))) {
     run('sample-build', ['run', 'build'], join(root, 'sample'));
-    const sampleTest = spawnSync(process.execPath, ['--experimental-strip-types', '--test', 'scripts/row.test.ts', 'scripts/query-guide.test.ts'], { cwd: join(root, 'sample'), encoding: 'utf8' });
+    const sampleTest = spawnSync(process.execPath, ['--experimental-strip-types', '--test', 'scripts/row.test.ts', 'scripts/query-guide.test.ts', 'scripts/write-policy.test.ts'], { cwd: join(root, 'sample'), encoding: 'utf8' });
     writeFileSync('release-evidence/sample-tests.log', (sampleTest.stdout ?? '') + (sampleTest.stderr ?? ''));
     checks.push({ name: 'sample-tests', code: sampleTest.status });
     console.log('sample-tests: ' + (sampleTest.status === 0 ? 'PASS' : 'FAIL'));

@@ -75,7 +75,10 @@ function validateRequest(value: unknown): ModelRequest {
   ensure((typeof value.sql === "string") !== (value.schema !== undefined), "Supply exactly one of sql or schema.");
   if (value.sql !== undefined) ensure(typeof value.sql === "string" && value.sql.length <= 1_000_000, "SQL must be text, at most 1 MB.");
   for (const k of ["question", "project"]) if (value[k] !== undefined) ensure(string(value[k]), k + " must be non-empty text.");
-  if (value.project !== undefined) ensure(bytes(value.project as string) <= 128, "Project exceeds 128 UTF-8 bytes.");
+  if (value.project !== undefined) {
+    ensure(bytes(value.project as string) <= 128, "Project exceeds 128 UTF-8 bytes.");
+    ensure(!(value.project as string).startsWith("///"), "Reserved /// namespace cannot be used as a project.");
+  }
   if (value.privacyReviewed !== undefined) ensure(typeof value.privacyReviewed === "boolean", "privacyReviewed must be boolean.");
   if (value.privateFields !== undefined) ensure(refs(value.privateFields), "Invalid privateFields references.");
   if (value.attributeLimits !== undefined) {
@@ -269,11 +272,13 @@ export function generateModel(value: unknown): EntityModel {
             result.blockers.push(issue("relationship-design", "Use contains with a bounded scalar element type for array membership; the complete parent array remains in its stored bytes column.", ref)); continue;
           }
           const relationKind = nameFor(t.name + "_" + c.name, kinds);
+          const relationName = result.project + "/" + relationKind;
+          if (bytes(relationName) > 128) result.blockers.push(issue("schema-name-budget", "Relationship schema " + relationName + " exceeds the SDK schema-name limit of 128 UTF-8 bytes. Choose a shorter explicit project name.", ref));
           result.entities.push({
             kind: relationKind, source: t.name,
             cardinality: "One relationship entity per scalar array element, including null elements. Preserve order and duplicates with zero-based ordinal in row-major traversal. Null and empty arrays have zero relationship entities; the parent preserves their distinction, dimensions and lower bounds.",
             identity: [...entity.identity, c.name, "ordinal"], owner: entity.owner, expiration: entity.expiration, expirationPolicy: { ...entity.expirationPolicy },
-            schema: { name: result.project + "/" + relationKind, columns: [
+            schema: { name: relationName, columns: [
               { name: "parent", type: "key", indexed: true, source: null, nullable: false, nullEncoding: "forbidden", encoding: "Resolved parent $key, separate from source identity." },
               { name: "value", ...element, indexed: true, source: ref, sourceType: c.type.replace(/\[\d*\]/g, ""), nullable: true, nullEncoding: "omit-column" },
               { name: "ordinal", type: "u64", indexed: false, source: null, nullable: false, nullEncoding: "forbidden", encoding: "Zero-based scalar position in row-major traversal, including null elements. Store ordinal only; value is the element column." },

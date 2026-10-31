@@ -9,8 +9,8 @@ export const demoRequest = {
   privacyReviewed: true,
   policies: [{ table: demoSource, owner: 'Connected signing wallet', expiration: 'Bounded maximum duration; Lifetime Extension only with owner authorization', expirationBlocks: MAX_LIFETIME_BLOCKS }],
 };
-export function generatedDemo() {
-  const model = generateModel(demoRequest);
+export function generatedDemo(request = demoRequest) {
+  const model = generateModel(request);
   if (model.status !== 'modelled') throw new Error('Generated demo schema has unresolved model decisions.');
   return { model, entity: model.entities[0], schema: toSdkSchema(model.entities[0]) };
 }

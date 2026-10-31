@@ -8,7 +8,7 @@ Registry publication, merge and production promotion require separate review app
 `scripts/verify-dgx.sh` runs the release checks and the already-available Node 22
 container checks. No testing dependency was added.
 
-- Linux ARM64, Node v24.22.1: 69 engine tests, 16 sample tests, typecheck, lint, package
+- Linux ARM64, Node v24.22.1: 72 engine tests, 21 sample tests, typecheck, lint, package
   build, sample build, archive installation, complete fixture output parity and CLI checks passed.
 - Node v22.23.4 on ARM64: the same engine/sample runtime tests, typechecks, library
   build and a separate clean archive consumer passed.
@@ -16,7 +16,7 @@ container checks. No testing dependency was added.
   The clean consumers compare complete JSON output for every shared fixture.
 - CLI checks cover unsupported public input, expected draft exit codes and refusal
   to overwrite an existing output file (`scripts/verify-release.mjs:46`).
-- Archive SHA-256: `7eb7aa06bcc11782cbeed9a68f2a27a0e79f033752b45f72ce1b83bfd6b0bf4f`.
+- Archive SHA-256: `7c44c02ef9f536e8a09ee6e19edb7c23eedbd1188c8235da9513a62cb583bbb1`.
   The sample consumes this exact archive and its matching lockfile integrity.
 
 ## Live generated-schema proof
@@ -36,19 +36,45 @@ dedicated funded lane wallet injected through the secrets runner.
   authoritative reverted receipt, `ExpiryBeyondMaxLifetime`, gas 40,820 of 1,000,000.
   This was an expected negative test. No automatic retry or funder signature occurred.
 
+## Large-row gas policy and review regressions
+
+`sample/src/write-policy.ts:13` estimates the exact SDK request through the wallet RPC
+at latest, stopping on errors. It supplies a fresh latest nonce and network gasPrice,
+uses max(1,000,000, 2 x estimate), and refuses more than half the latest head gas limit.
+There are zero automatic retries. Wrapped SDK errors preserve the clear policy reason.
+Row data never reaches the application's server read proxy.
+
+- A 70,000-byte row at the maximum lifetime was refused before signing: estimate
+  10,884,133, doubled budget 21,768,266, half-head cap 15,000,000. No transaction.
+- With an explicit generated one-day decision (43,200 blocks), the
+  [live create](https://rabdi.explorer.arkiv.network/tx/0xa71f9f97177d1768cce7c1befaf95673d4d28cefcb63c71e9a480a2563432f51)
+  succeeded: estimate 2,908,727; gas limit 5,817,454; gas used 2,884,666; head limit
+  30,000,000. TEST_P2E only, nonce 2, network gasPrice 1 gwei, zero retries.
+- [The entity](https://rabdi.explorer.arkiv.network/entity/0x8c96dccaf879b52ea1b77139c8bd2f5ef013dd498e4288531219ff7802074a77)
+  read back all 70,000 nonzero bytes exactly and matched the indexed score query.
+  Repeating the proof and normal seed performed zero writes.
+- Regression tests accept a 128-byte relationship schema, block 129 bytes, and block
+  the reserved triple-slash project prefix. The deployed archive worker passes the
+  same boundaries. Lane M fixtures and full JSON/Markdown output remain byte-identical.
+- `scripts/verify-rabdi-lifetime.mjs` now checks failed unsigned estimation without
+  signing. The earlier reverted boundary transaction above remains historical proof.
+
 ## Preview and browser checks
 
 Existing project: `postgres-to-entity`.
-[Review preview](https://postgres-to-entity-9eh81azvd-golem.vercel.app), deployment
-`dpl_gxMAikehvFY3B4ctDTSbRLA6hELm`. It retains the project's existing Vercel authentication.
+[Review preview](https://postgres-to-entity-ews0vj3q0-golem.vercel.app), deployment
+`dpl_Dd4bPvVo4oTwsk2g3VFKfM4BtYW2`. It retains the project's existing Vercel authentication.
 
 - A hydrated browser displayed the real seeded Rabdi entity through the fixed,
   owner-filtered server endpoint. Responses use `Cache-Control: no-store`.
 - All four examples converted and exported the current model, without illustrative
   values in exports. Edited row values followed indexed/stored/excluded destinations.
-- An isolated browser context exercised one simulated wallet transaction: explicit
+- An isolated browser context exercised two simulated wallet transactions: explicit
   nonce, gas and current gasPrice; exact typed/indexed wire values; rejection, funding,
   consent invalidation, uncertain-write lock, and read-only receipt reconciliation.
+  A 70,000-byte row uses twice its exact unsigned estimate; failed estimates and
+  half-head-budget violations send nothing. An uncertain no-hash result also locks
+  resubmission and blocks alternate SDK send methods.
   No real browser-wallet transaction was sent. Live signing is the separate proof above.
 - Twenty dark/light viewport probes passed at 320, 390, 519, 520, 521, 682, 683, 684,
   768 and 1440 pixels. Screenshots and computed typography were inspected; zoom 200%
@@ -62,6 +88,8 @@ Existing project: `postgres-to-entity`.
 
 ## Improvement observed
 
-Not blocking this candidate: the wallet setup hint could offer a direct access-keys
-action and guided network setup. The current flow requires the user to configure
-their own Rabdi RPC in their wallet before connecting.
+Not blocking this candidate: the gas-budget refusal could link directly to Entity
+Expiration so users can review a shorter bounded duration. The live proof showed
+that the same 70 KB row fits with one day while the maximum duration exceeds the
+safe gas budget. The current message clearly refuses and suggests splitting or
+reducing the row before any signing.
