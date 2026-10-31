@@ -9,6 +9,7 @@ import { exampleValue } from './entity-preview';
 import { defaultFlags, type DemoFlags } from './creation-flags';
 import { renderRowPreview } from './row-preview';
 import { sendWithPolicy, WritePolicyError } from './write-policy';
+import { executeWrite, reconcileWrite, newWriteOperation, operationKey, type WriteOperation, type Hash } from './write-operation';
 
 type Provider=EIP1193Provider & {on?:(event:string,callback:(...args:unknown[])=>void)=>void};
 const rpc=createPublicClient({chain:rabdi,transport:http('/api/rpc',{timeout:15000,retryCount:1})});
@@ -31,7 +32,16 @@ export function initDeployment(){
  let provider:Provider|undefined;
  let account:Address|undefined;
  let entity:EntityDesign|undefined,model:EntityModel|undefined,policy:{owner:string;expiration:string}|undefined;
- let fresh=false,busy=false,epoch=0;let submittedHash:string|undefined,submissionUncertain=false;
+ let fresh=false,busy=false,epoch=0;
+ const operations=new Map<string,WriteOperation>();
+ let lastOperation:WriteOperation|undefined;
+ const keyFor=(selected:EntityDesign,owner:Address,values:ReturnType<typeof prepareRow>['values'])=>{
+  const columns=sourceColumns(selected),identity=columns.filter(c=>selected.identity.includes(c.source.column));
+  return operationKey(owner,selected.source,(identity.length?identity:columns).map(c=>{
+   const value=values[c.name]?.value;
+   return [c.source.column,c.sourceType==='uuid'&&typeof value==='string'?value.toLowerCase():value] as [string,unknown];
+  }));
+ };
  let flags=defaultFlags();
  const editedRows=new Map<string,Record<string,unknown>>();
  const connect=$<HTMLButtonElement>('connect-wallet'),deploy=$<HTMLButtonElement>('deploy');
@@ -48,7 +58,7 @@ export function initDeployment(){
   target.scrollIntoView({block:'center'});target.focus({preventScroll:true});
  });
  function clearPreviousFeedback(){
-  if(submittedHash||submissionUncertain)return;
+  if(lastOperation&&lastOperation.phase!=='idle')return;
   status.textContent='';
   if(history.hidden)return;
   history.open=false;$('creation-history-label').textContent='Previous creation';
@@ -63,15 +73,17 @@ export function initDeployment(){
  }
  function refresh(){
   const mappedRow=$('row-mapping');mappedRow.hidden=true;mappedRow.replaceChildren();
-  let reason='The model changed. Rebuild it before deploying.';let valid=false;
+  let reason='The model changed. Rebuild it before deploying.';let valid=false,operationLocked=false;
   resolve.hidden=true;resolve.disabled=busy;
   if(!fresh)review($('configure').hidden?'analyze':'generate',$('configure').hidden?'Read schema':'Review and rebuild model');
-  if(submittedHash||submissionUncertain){reason='Transaction outcome needs verification. Do not send this creation again; inspect your wallet and Block Explorer.';}
-  else if(fresh&&entity&&model&&policy){
+  if(fresh&&entity&&model&&policy){
    try{
     const prepared=prepareRow(entity,model,row.value);preview.textContent=JSON.stringify({...prepared.display,flags},null,2);
     renderRowPreview(mappedRow,prepared.display);
-    if(policy.owner!=='Connected wallet'){reason='Another wallet is an example only. Choose Connected wallet and rebuild to deploy.';review('refine','Review ownership');}
+    const prior=account?operations.get(keyFor(entity,account,prepared.values)):undefined;
+    operationLocked=policy.owner==='Connected wallet'&&!!prior&&prior.phase!=='idle';
+    if(operationLocked){reason=prior!.message||'This operation is already sending. No other send is allowed.';}
+    else if(policy.owner!=='Connected wallet'){reason='Another wallet is an example only. Choose Connected wallet and rebuild to deploy.';review('refine','Review ownership');}
     else if(new Date(policy.expiration).getTime()<=Date.now()||!Number.isFinite(new Date(policy.expiration).getTime())){reason='Choose a future expiration and rebuild.';review('refine','Review expiration');}
     else if(Math.ceil((new Date(policy.expiration).getTime()-Date.now())/2000)>7883970){reason='Choose Entity Expiration within 7,883,970 blocks; use authorized Lifetime Extension for longer retention.';review('refine','Review expiration');}
     else if(model.decisions.some(d=>!['privacy','attribute-limit','cross-entity-query','constraints'].includes(d.code))){reason='Resolve the model decisions before deploying: '+model.decisions.filter(d=>!['privacy','attribute-limit','cross-entity-query','constraints'].includes(d.code)).map(d=>d.message).join(' ');review('issues','Review model decisions');}
@@ -81,7 +93,7 @@ export function initDeployment(){
     else {reason='One entity on Rabdi · owner '+short(account)+'.';valid=true;}
    }catch(error){reason=model.blockers.length?model.blockers.map(b=>(b.field?b.field.column+': ':'')+b.message).join(' '):message(error);preview.textContent=reason;review(model.blockers.length?'issues':'entity-row',model.blockers.length?'Fix model issues':'Review source row');}
   } else preview.textContent='Rebuild to review current values.';
-  if(submittedHash||submissionUncertain||busy)resolve.hidden=true;
+  if(operationLocked||busy)resolve.hidden=true;
   eligibility.textContent=busy?'Waiting for the wallet or transaction confirmation…':reason;
   eligibility.dataset.ready=String(valid&&!busy);deploy.disabled=!valid||busy;
  }
@@ -136,62 +148,72 @@ export function initDeployment(){
       status.textContent='Entity created and read back successfully.';
     }catch(error){verification.textContent='Creation confirmed, but read verification is pending: '+message(error);status.textContent='Entity created. Use its transaction link to inspect the confirmed write.';}
   }
-  busy=true;lockInputs(true);refresh();connect.disabled=true;status.textContent='Checking wallet and test GLM balance…';
+  const key=keyFor(selected,owner,prepared.values);
+  const operation=operations.get(key)??newWriteOperation();operations.set(key,operation);lastOperation=operation;
+  busy=true;lockInputs(true);refresh();connect.disabled=true;
+  const lookup=async(hash:Hash)=>rpc.getTransactionReceipt({hash});
+  async function showOutcome(){
+    status.textContent=operation.message;status.dataset.writePhase=operation.phase;
+    if(operation.phase==='confirmed'&&operation.result){await showCreated(operation.result);return;}
+    history.hidden=false;history.open=true;$('creation-history-label').textContent='Transaction outcome';
+    const output=$('deploy-result'),note=document.createElement('p');
+    note.textContent=operation.message+(operation.phase==='uncertain'&&!operation.hash?' The wallet did not return a transaction hash. Inspect its activity; do not send again.':'');
+    output.replaceChildren(note);
+    if(operation.previousHash)output.append(link('Previous confirmed reverted transaction','https://rabdi.explorer.arkiv.network/tx/'+operation.previousHash));
+    if(!operation.hash)return;
+    const hash=operation.hash;output.append(link('Block Explorer - transaction','https://rabdi.explorer.arkiv.network/tx/'+hash));
+    if(operation.phase==='terminal')return;
+    const check=document.createElement('button');check.type='button';check.className='secondary';check.id='check-transaction';check.textContent='Check confirmation again';
+    check.addEventListener('click',async()=>{
+      if(busy)return;busy=true;check.disabled=true;refresh();
+      try{
+        let observed:Awaited<ReturnType<typeof lookup>>|undefined;
+        await reconcileWrite(operation,async currentHash=>{observed=await lookup(currentHash);return observed;});status.dataset.writePhase=operation.phase;
+        if(operation.phase==='confirmed'){
+          const receipt=observed;if(!receipt||receipt.status!=='success')throw Error('Confirmation pending; do not resend.');
+          let entityKey=operation.result?.entityKey;
+          if(!entityKey)for(const log of receipt.logs){if(log.address.toLowerCase()!=='0x4400000000000000000000000000000000000044')continue;try{const event=decodeEventLog({abi:ENTITY_EVENTS_ABI,topics:log.topics,data:log.data});if(event.eventName==='EntityCreated'&&event.args.owner.toLowerCase()===owner.toLowerCase())entityKey=event.args.entityKey;}catch{}}
+          if(!entityKey)throw Error('Confirmed transaction has no matching creation event. Inspect its explorer; do not resend.');
+          operation.result={entityKey,txHash:hash};await showCreated(operation.result);
+        }else{note.textContent=operation.message;status.textContent=operation.message;}
+      }catch(error){status.textContent='Confirmation pending: '+message(error);}
+      finally{busy=false;check.disabled=false;consent.checked=false;refresh();}
+    });output.append(check);
+  }
   try{
-    await ensureNetwork(p);
-    const accounts=await p.request({method:'eth_accounts'});
-    if(accounts[0]?.toLowerCase()!==owner.toLowerCase()||version!==epoch||!fresh)throw Error('Your account or model changed. Review it before signing.');
-    if(await rpc.getBalance({address:owner,blockTag:'latest'})===0n)throw Error('Your wallet needs test GLM. Use the faucet link below, then try again.');
-    if(version!==epoch||!fresh)throw Error('Inputs changed. Review before signing.');
-    const guarded = { request: async (args: {method:string;params?:readonly unknown[]}) => {
-      // Viem may try a wallet_* fallback for unsupported eth_sendTransaction errors.
-      // Never let that become a second, unestimated or uncertain send.
-      if(args.method==='wallet_sendTransaction'||args.method==='eth_sendRawTransaction')throw Error('Alternate write methods are disabled. Inspect the first wallet attempt; do not resend.');
-      if(args.method === 'eth_sendTransaction') {
-        if(submittedHash||submissionUncertain)throw Error('A write was already attempted. Inspect its outcome before any new creation.');
-        return sendWithPolicy(p as unknown as import('./write-policy').PolicyProvider,args.params?.[0] as Record<string,unknown>,async()=>{
-        if(version!==epoch||!fresh||!consent.checked||new Date(expires).getTime()<=Date.now())throw new WritePolicyError('Inputs changed before signing. Review and try again.');
-        if(BigInt(await p.request({method:'eth_chainId'}))!==BigInt(rabdi.id))throw new WritePolicyError('Wallet network changed before signing.');
-        const selectedAccounts=await p.request({method:'eth_accounts'});
-        if(selectedAccounts[0]?.toLowerCase()!==owner.toLowerCase())throw new WritePolicyError('Wallet account changed before signing.');
-        status.textContent='Confirm creation in your wallet. This sends the reviewed values to Rabdi.';
-        submissionUncertain=true;
-      },hash=>{submittedHash=hash;submissionUncertain=false;});
-      }
-      const response=await (p.request as (input:{method:string;params?:readonly unknown[]})=>Promise<unknown>)(args);
-      return response;
-    }} as Provider;
-    const wallet=createWalletClient({account:owner,chain:rabdi,transport:custom(guarded,{retryCount:0})});
-    status.textContent='Estimating the exact reviewed creation on Rabdi…';
-    const remaining=Math.ceil((expires.getTime()-Date.now())/2000);
-    if(remaining<1||remaining>7883970)throw Error('Entity Expiration is outside the supported lifetime. Review it again.');
-    // The guarded transport estimates the exact SDK calldata before any wallet send.
-    const result=await wallet.createEntity(toSdkSchema(selected),prepared.values,{expiration:ExpirationTime.atDate(expires),flags:submittedFlags});
-    submittedHash=result.txHash;
-    const receipt=await rpc.getTransactionReceipt({hash:result.txHash});
-    if(receipt.status!=='success')throw Error('Transaction reverted. Inspect the authoritative receipt; no automatic retry is performed.');
-    await showCreated(result);
-    submittedHash=undefined;submissionUncertain=false;consent.checked=false;
-  }catch(error){status.textContent=message(error);consent.checked=false;
-    if(message(error)==='Transaction rejected in your wallet. No entity was created.')submissionUncertain=false;
-    if(submissionUncertain&&!submittedHash){history.hidden=false;history.open=true;$('creation-history-label').textContent='Transaction outcome unknown';$('deploy-result').textContent='The wallet send did not return a transaction hash. It may have reached Rabdi. Inspect your wallet activity and Block Explorer; this page will not resend it.';}
-    if(submittedHash){history.hidden=false;history.open=true;$('creation-history-label').textContent='Transaction awaiting confirmation';const output=$('deploy-result');const note=document.createElement('p');note.textContent='A transaction was submitted. Its outcome needs verification; do not send it again.';const hash=submittedHash as `0x${string}`;
-      const retry=document.createElement('button');retry.type='button';retry.className='secondary';retry.id='check-transaction';retry.textContent='Check confirmation again';
-      retry.addEventListener('click',async()=>{
-       if(busy)return;busy=true;retry.disabled=true;refresh();
-       try{
-        const receipt=await rpc.getTransactionReceipt({hash});
-        if(receipt.status==='reverted'){submittedHash=undefined;status.textContent='Transaction reverted. No entity was created. Review before trying again.';note.textContent=status.textContent;output.replaceChildren(note,link('View reverted transaction','https://rabdi.explorer.arkiv.network/tx/'+hash));}
-        else if(receipt.status==='success'){
-         let entityKey:`0x${string}`|undefined;
-         for(const log of receipt.logs){if(log.address.toLowerCase()!=='0x4400000000000000000000000000000000000044')continue;try{const event=decodeEventLog({abi:ENTITY_EVENTS_ABI,topics:log.topics,data:log.data});if(event.eventName==='EntityCreated'&&event.args.owner.toLowerCase()===owner.toLowerCase())entityKey=event.args.entityKey;}catch{}}
-         if(!entityKey)throw Error('Confirmed transaction has no matching creation event. Inspect its explorer; do not resend.');
-         await showCreated({entityKey,txHash:hash});submittedHash=undefined;
-        }else throw Error('Receipt status is unknown. Do not resend.');
-       }catch(error){status.textContent='Confirmation still pending: '+message(error);}
-       finally{busy=false;retry.disabled=false;consent.checked=false;refresh();}
-      });
-      output.replaceChildren(note,link('Check transaction','https://rabdi.explorer.arkiv.network/tx/'+hash),retry);}}finally{busy=false;lockInputs(false);connect.disabled=false;refresh();}
+    await executeWrite(operation,{
+      message,
+      receipt:lookup,
+      async send(minimumGas,attempted,hashed){
+        status.textContent='Checking wallet and estimating the reviewed creation...';
+        await ensureNetwork(p);
+        const accounts=await p.request({method:'eth_accounts'});
+        if(accounts[0]?.toLowerCase()!==owner.toLowerCase()||version!==epoch||!fresh)throw new WritePolicyError('Your account or model changed. Review it before signing.');
+        if(await rpc.getBalance({address:owner,blockTag:'latest'})===0n)throw new WritePolicyError('Your wallet needs test GLM. Use the faucet link below, then try again.');
+        const remaining=Math.ceil((expires.getTime()-Date.now())/2000);
+        if(remaining<1||remaining>7883970)throw new WritePolicyError('Entity Expiration is outside the supported lifetime. Review it again.');
+        let sendTaken=false;
+        const guarded={request:async(args:{method:string;params?:readonly unknown[]})=>{
+          if(args.method==='wallet_sendTransaction'||args.method==='eth_sendRawTransaction')throw Error('Alternate write methods are disabled; inspect the first attempt.');
+          if(args.method==='eth_sendTransaction'){
+            if(sendTaken)throw Error('This attempt already requested a send.');sendTaken=true;
+            return sendWithPolicy(p as unknown as import('./write-policy').PolicyProvider,args.params?.[0] as Record<string,unknown>,async quote=>{
+              if(version!==epoch||!fresh||!consent.checked||expires.getTime()<=Date.now())throw new WritePolicyError('Inputs changed before signing. Review and try again.');
+              if(BigInt(await p.request({method:'eth_chainId'}))!==BigInt(rabdi.id))throw new WritePolicyError('Wallet network changed before signing.');
+              const current=await p.request({method:'eth_accounts'});
+              if(current[0]?.toLowerCase()!==owner.toLowerCase())throw new WritePolicyError('Wallet account changed before signing.');
+              attempted(quote.gas);status.textContent=operation.attempts===2?'Confirm the single gas-exhaustion retry in your wallet.':'Confirm creation in your wallet. This sends the reviewed values to Rabdi.';
+            },hash=>hashed(hash as Hash),undefined,minimumGas);
+          }
+          return (p.request as (input:{method:string;params?:readonly unknown[]})=>Promise<unknown>)(args);
+        }} as Provider;
+        const wallet=createWalletClient({account:owner,chain:rabdi,transport:custom(guarded,{retryCount:0})});
+        return wallet.createEntity(toSdkSchema(selected),prepared.values,{expiration:ExpirationTime.atDate(expires),flags:submittedFlags});
+      },
+    });
+    await showOutcome();
+  }catch(error){status.textContent=message(error);}
+  finally{busy=false;lockInputs(false);connect.disabled=false;consent.checked=false;refresh();}
  });
  return {
   setFlags(next:DemoFlags){flags={...next};epoch++;consent.checked=false;clearPreviousFeedback();refresh();},

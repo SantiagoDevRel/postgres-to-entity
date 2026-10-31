@@ -54,6 +54,12 @@ fresh nonce from latest, current gasPrice and gas=max(1000000n,2*estimate), neve
 Check receipt.status === success. A revert at the gas limit requires more gas.
 Never retry a successful/uncertain write. Rabdi head-only state errors require latest
 or pending for state reads. Keep exact SDK calls grounded in installed 1.0.0 source.
+The sample keeps one operation record by signer/source identity across renders/clicks.
+SDK success sets submitted(hash) before lookup and permanently closes resends.
+Only an SDK-confirmed revert plus matching gasUsed == sent gas permits one retry,
+re-estimated at latest with at least twice prior gas and the same half-head cap.
+Every other revert is terminal; uncertain/null/disagreeing outcomes stay locked.
+Never exceed two send attempts for an operation. Keep all five COMMON retry cases tested.
 
 ## Verification and release
 

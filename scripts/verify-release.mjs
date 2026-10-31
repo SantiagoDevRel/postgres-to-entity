@@ -27,7 +27,7 @@ if (built && run('pack', ['pack', '--pack-destination', 'sample/vendor'])) {
   run('sample-lock', ['install', './vendor/postgres-to-entity-1.0.0.tgz', '--package-lock-only', '--ignore-scripts', '--no-audit', '--no-fund'], join(root, 'sample'));
   if (run('sample-install', ['ci', '--no-audit', '--no-fund'], join(root, 'sample'))) {
     run('sample-build', ['run', 'build'], join(root, 'sample'));
-    const sampleTest = spawnSync(process.execPath, ['--experimental-strip-types', '--test', 'scripts/row.test.ts', 'scripts/query-guide.test.ts', 'scripts/write-policy.test.ts'], { cwd: join(root, 'sample'), encoding: 'utf8' });
+    const sampleTest = spawnSync(process.execPath, ['--experimental-strip-types', '--test', 'scripts/row.test.ts', 'scripts/query-guide.test.ts', 'scripts/write-policy.test.ts', 'scripts/write-operation.test.ts'], { cwd: join(root, 'sample'), encoding: 'utf8' });
     writeFileSync('release-evidence/sample-tests.log', (sampleTest.stdout ?? '') + (sampleTest.stderr ?? ''));
     checks.push({ name: 'sample-tests', code: sampleTest.status });
     console.log('sample-tests: ' + (sampleTest.status === 0 ? 'PASS' : 'FAIL'));
@@ -37,6 +37,7 @@ if (built && run('pack', ['pack', '--pack-destination', 'sample/vendor'])) {
   mkdirSync(consumer);
   writeFileSync(join(consumer, 'package.json'), JSON.stringify({ private: true, type: 'module' }));
   if (run('consumer-install', ['install', '--ignore-scripts', '--no-audit', '--no-fund', archive], consumer)) {
+    assert.ok(readFileSync(join(consumer, 'node_modules/postgres-to-entity/README.md'), 'utf8').includes('npm install postgres-to-entity@1.0.0 @arkiv-network/sdk@1.0.0 viem'), 'Packed README must install the registry release');
     const packed = await import(pathToFileURL(join(consumer, 'node_modules/postgres-to-entity/dist/postgres.js')));
     const source = await import(pathToFileURL(join(root, 'dist/postgres.js')));
     const fixtures = JSON.parse(readFileSync('src/model-fixtures.json', 'utf8'));

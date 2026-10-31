@@ -13,8 +13,9 @@ export async function verifyRabdi(page, output, origin, { viem } = {}) {
   const events = parseAbi(['event EntityCreated(bytes32 indexed entityKey, address indexed owner, uint64 expiresAt, uint8 creationFlags)']);
   const checks = [], errors = [], geometry = [], calls = [];
   let funds = true, reject = false, brokenReceipt = false, unknownSend = false, estimateFails = false, headLimit = 30000000n, sent = 0, stored, receipt, estimated, quotedGasPrice = 1000000000n;
+  let nonce=0, walletRequests=0, retryMode='normal', caseSends=0, activeHash=hash, lastGas='0x0';
   page.on('pageerror', error => errors.push(error.message));
-  const rpc = async ({ method, params = [] }) => {
+  const rpc = async ({ method, params = [] }, scope='wallet') => {
     calls.push(method);
     if (method === 'eth_chainId') return '0x76edaf';
     if (method === 'eth_blockNumber') return '0x101';
@@ -25,9 +26,13 @@ export async function verifyRabdi(page, output, origin, { viem } = {}) {
       estimated = params[0]; return estimated.data.length > 140000 ? toHex(3500000n) : toHex(200000n);
     }
     if (method === 'eth_getBlockByNumber') { assert.deepEqual(params, ['latest', false]); return { gasLimit: toHex(headLimit) }; }
-    if (method === 'eth_getTransactionCount') { assert.equal(params[1], 'latest'); return '0x0'; }
+    if (method === 'eth_getTransactionCount') { assert.equal(params[1], 'latest'); return toHex(nonce); }
     if (method === 'eth_getBalance') { assert.equal(params[1], 'latest'); return funds ? '0xde0b6b3a7640000' : '0x0'; }
-    if (method === 'eth_getTransactionReceipt') return brokenReceipt && receipt ? { ...receipt, logs: [] } : receipt ?? null;
+    if (method === 'eth_getTransactionReceipt') {
+      if(scope==='proxy'&&retryMode==='success-null')return null;
+      if(scope==='proxy'&&retryMode==='success-disagrees'&&receipt)return {...receipt,status:'0x0',gasUsed:lastGas,logs:[]};
+      return brokenReceipt && receipt ? { ...receipt, logs: [] } : receipt ?? null;
+    }
     if (method === 'arkiv_getEntity') { assert.ok(stored); assert.equal(params[0], entityKey); return stored; }
     throw new Error('Unexpected fixture read: ' + method);
   };
@@ -41,17 +46,21 @@ export async function verifyRabdi(page, output, origin, { viem } = {}) {
       if (body.method === 'eth_gasPrice') quotedGasPrice = BigInt(result.result);
       await route.fulfill({ response }); return;
     }
-    await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ jsonrpc: '2.0', id: body.id, result: await rpc(body) }) });
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ jsonrpc: '2.0', id: body.id, result: await rpc(body,'proxy') }) });
   });
   await page.exposeFunction('p2eFixtureWallet', async ({ method, params = [] }) => {
     if (method === 'eth_accounts' || method === 'eth_requestAccounts') return [address];
     if (method === 'eth_sendTransaction') {
+      walletRequests++;caseSends++;
       if (reject) return { fixtureError: 4001 };
       if (unknownSend) return { fixtureError: -32601 };
       const tx = params[0];
+      lastGas=tx.gas;
       assert.equal(tx.from.toLowerCase(), address); assert.equal(tx.to.toLowerCase(), registry);
       assert.equal(tx.data, estimated.data); assert.equal(tx.nonce, estimated.nonce); assert.equal(tx.gasPrice, estimated.gasPrice);
-      assert.equal(BigInt(tx.gas), tx.data.length > 140000 ? 7000000n : 1000000n); assert.equal(BigInt(tx.gasPrice), quotedGasPrice); assert.equal(BigInt(tx.nonce), 0n);
+      const baseGas=tx.data.length > 140000 ? 7000000n : 1000000n;
+      assert.equal(BigInt(tx.gas), retryMode==='gas-exhausted'&&caseSends===2?baseGas*2n:baseGas); assert.equal(BigInt(tx.gasPrice), quotedGasPrice); assert.equal(BigInt(tx.nonce), BigInt(nonce));
+      activeHash=toHex(BigInt(8704+walletRequests),{size:32});
       const decoded = decodeFunctionData({ abi: parseAbi(['function execute((uint8 operation, bytes operationData)[] ops) returns (bytes32[] keys)']), data: tx.data });
       assert.equal(decoded.args[0].length, 1); assert.equal(decoded.args[0][0].operation, 1);
       const [creation] = decodeAbiParameters(parseAbiParameters('(uint128 salt, uint64 expiresAt, uint64 minLifetime, uint8 creationFlags, (bytes32 name, uint8 typeId, bytes value)[] attributes)'), decoded.args[0][0].operationData);
@@ -73,9 +82,10 @@ export async function verifyRabdi(page, output, origin, { viem } = {}) {
         return { name: cell.name, type, value };
       });
       stored = { key: entityKey, owner: address, creator: address, createdAt: '0x101', updatedAt: '0x101', expiresAt: toHex(creation.expiresAt), creationFlags: creation.creationFlags, attributes };
-      const log = { address: registry, topics: encodeEventTopics({ abi: events, eventName: 'EntityCreated', args: { entityKey, owner: address } }), data: encodeAbiParameters(parseAbiParameters('uint64,uint8'), [creation.expiresAt, creation.creationFlags]), blockNumber: '0x101', transactionHash: hash, transactionIndex: '0x0', blockHash, logIndex: '0x0', removed: false };
-      receipt = { transactionHash: hash, transactionIndex: '0x0', blockHash, blockNumber: '0x101', from: address, to: registry, gasUsed: '0x2e630', cumulativeGasUsed: '0x2e630', effectiveGasPrice: '0x3b9aca00', logsBloom: '0x' + '00'.repeat(256), logs: [log], status: '0x1', type: '0x0', contractAddress: null };
-      sent++; return hash;
+      const log = { address: registry, topics: encodeEventTopics({ abi: events, eventName: 'EntityCreated', args: { entityKey, owner: address } }), data: encodeAbiParameters(parseAbiParameters('uint64,uint8'), [creation.expiresAt, creation.creationFlags]), blockNumber: '0x101', transactionHash: activeHash, transactionIndex: '0x0', blockHash, logIndex: '0x0', removed: false };
+      const reverted=retryMode==='non-gas'||retryMode==='gas-exhausted'&&caseSends===1;
+      receipt = { transactionHash: activeHash, transactionIndex: '0x0', blockHash, blockNumber: '0x101', from: address, to: registry, gasUsed: reverted?(retryMode==='non-gas'?toHex(100000n):tx.gas):'0x2e630', cumulativeGasUsed: '0x2e630', effectiveGasPrice: '0x3b9aca00', logsBloom: '0x' + '00'.repeat(256), logs: reverted?[]:[log], status: reverted?'0x0':'0x1', type: '0x0', contractAddress: null };
+      sent++;nonce++;return activeHash;
     }
     return rpc({ method, params });
   });
@@ -155,6 +165,8 @@ export async function verifyRabdi(page, output, origin, { viem } = {}) {
   await page.waitForFunction(() => document.querySelector('#wallet-status').textContent.includes('50%')); assert.equal(sent, 0); headLimit = 30000000n;
   await page.locator('#deploy-consent').check(); reject = true; await page.locator('#deploy').click();
   await page.waitForFunction(() => document.querySelector('#wallet-status').textContent.includes('rejected')); assert.equal(sent, 0); reject = false;
+  assert.equal(await page.locator('#deploy').isDisabled(),true);
+  await page.locator('#entity-row').fill(JSON.stringify({...initial,id:'00000000-0000-4000-8000-000000000002'}));
   await page.locator('#flag-readonly').selectOption('true'); assert.equal(await page.locator('#deploy-consent').isChecked(), false);
   await page.locator('#deploy-consent').check(); brokenReceipt = true; await page.locator('#deploy').click();
   await page.waitForFunction(() => !!document.querySelector('#check-transaction'), undefined, { timeout: 30000 });
@@ -203,12 +215,26 @@ export async function verifyRabdi(page, output, origin, { viem } = {}) {
   await page.waitForFunction(() => document.querySelector('#wallet-status').textContent === 'Entity created and read back successfully.', undefined, { timeout: 30000 });
   assert.equal(sent, 2);
   checks.push('Exact 70,000-byte row uses 7,000,000 gas; estimate failure and half-head-budget violations send nothing.');
-  unknownSend = true; await page.locator('#deploy-consent').check(); await page.locator('#deploy').click();
-  await page.waitForFunction(() => document.querySelector('#deploy-result').textContent.includes('did not return a transaction hash'));
-  assert.equal(await page.locator('#deploy').isDisabled(), true); assert.equal(sent, 2);
-  checks.push('Uncertain no-hash send locks resubmission and blocks the SDK wallet_* fallback.');
+  const retryCases=[];
+  for(const [index,mode,expected,phase]of [[2,'non-gas',1,'terminal'],[3,'gas-exhausted',2,'confirmed'],[4,'success-disagrees',1,'receipt-disagrees'],[5,'success-null',1,'confirmation-pending'],[6,'uncertain',1,'uncertain']]){
+    retryMode=mode;caseSends=0;receipt=undefined;unknownSend=mode==='uncertain';
+    await page.locator('#entity-row').fill(JSON.stringify({id:index,body:Buffer.alloc(70000,0x5a).toString('base64')}));
+    const before=walletRequests;
+    await page.locator('#deploy-consent').check();await page.locator('#deploy').click();
+    await page.waitForFunction(expected=>document.querySelector('#wallet-status').dataset.writePhase===expected,phase,{timeout:30000});
+    assert.equal(walletRequests-before,expected,mode);
+    for(let click=0;click<3;click++){
+      await page.locator('#deploy-consent').check();
+      await page.locator('#deploy').evaluate(button=>{button.disabled=false;button.dispatchEvent(new MouseEvent('click',{bubbles:true}));});
+      assert.equal(await page.locator('#deploy').isDisabled(),true);
+    }
+    await nav(2);await page.locator('#generate').click();await ready();await openDemo();
+    await page.locator('#deploy-consent').check();assert.equal(await page.locator('#deploy').isDisabled(),true);
+    assert.equal(walletRequests-before,expected,mode+' across clicks and model rerender');
+    retryCases.push({mode,sends:walletRequests-before,phase});checks.push('COMMON retry state: '+mode+' -> '+expected+' send(s), locked across clicks/rerender.');
+  }
   assert.deepEqual(errors, []);
-  const report = { origin, checks, simulatedTransactions: sent, realBrowserWalletTransactions: 0, geometry, errors, calls };
+  const report = { origin, checks, retryCases, simulatedTransactions: sent, simulatedSendRequests:walletRequests, realBrowserWalletTransactions: 0, geometry, errors, calls };
   await writeFile(join(output, 'browser-evidence.json'), JSON.stringify(report, null, 2));
   return report;
 }

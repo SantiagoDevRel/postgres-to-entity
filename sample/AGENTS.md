@@ -23,7 +23,12 @@ Explicit gas, gasPrice, nonce/latest and successful receipt are mandatory. Obtai
 unsigned estimate of the exact SDK request at latest; stop if it fails. Use gas equal
 to max(1000000n,2*estimate), capped at half the latest block gas limit; refuse larger rows.
 Estimate through the wallet RPC so private row data never reaches the server proxy.
-Never automatically retry. An uncertain send without a hash must also lock resubmission.
+Keep one persistent operation record keyed by signer and source identity across rerenders
+and clicks, before any network call. SDK success sets submitted(hash) before lookup
+and never permits another send, even when later receipt reads disagree or return null.
+Only an SDK-confirmed reverted receipt with gasUsed == sent gas permits one retry:
+re-estimate at latest, at least double prior gas, and retain the half-head cap.
+Any other revert is terminal. Max two attempts ever. Uncertain sends stay locked.
 Retain an available transaction hash, block resends and permit read-only reconciliation.
 Compare typed readback and creation flags with the submitted values. Source constraints
 require explicit review, not a claim of automatic SQL constraint enforcement.

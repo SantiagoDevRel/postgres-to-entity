@@ -6,10 +6,10 @@ The converter is deterministic and offline. It does not connect, sign, import ro
 
 ## Install and run
 
-Node 22.12 through 23. Install the reviewed 1.0.0 archive before registry publication:
+Node 22.12 through 23. Release installation (publication requires review approval):
 
 ```sh
-npm install ./postgres-to-entity-1.0.0.tgz @arkiv-network/sdk@1.0.0 viem
+npm install postgres-to-entity@1.0.0 @arkiv-network/sdk@1.0.0 viem
 npx postgres-to-entity schema.sql --format markdown --out NEW_MODEL.md
 ```
 
@@ -104,8 +104,11 @@ explicit nonce from `eth_getTransactionCount(address, "latest")`, gas at least
 stop on estimation errors. Use `max(1000000n, 2n * estimate)` and refuse or split writes
 exceeding 50% of the latest block gas limit. Check `receipt.status === "success"`
 before claiming creation; retain at least 2x headroom for measured large entities.
-A revert at the gas limit indicates under-estimation. At most one retry is allowed,
-only after an authoritative gas-exhausted reverted receipt; never resend a successful or uncertain write.
+A revert at the gas limit indicates under-estimation. Keep one operation state before
+network calls and across renders/clicks. An SDK success hash permanently closes sends,
+even if a later lookup is null or disagrees. Only an SDK-reported confirmed revert
+with receipt gasUsed equal to sent gas allows one retry, re-estimated with at least
+twice prior gas and the same half-head cap. Max two attempts; uncertain outcomes stay locked.
 If Rabdi reports `arkiv serves state at the chain head only`, read state with `latest`
 or `pending`; historical block hashes, `safe` and `finalized` are unsupported for those reads.
 MissingAccessKeyError means a server/client access key must be configured, not embedded in a bundle.

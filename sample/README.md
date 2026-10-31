@@ -43,7 +43,12 @@ gas=max(1000000n,2*estimate), capped at 50% of the latest block gas limit. Large
 are refused with a split/reduce message. It checks a successful receipt and compares
 all submitted typed columns on readback. Row data never enters the server read proxy.
 An uncertain transaction blocks resubmission, including when no hash returns. A revert at the gas
-limit requires a larger explicit limit; no automatic retry is performed. If state
+limit permits one retry only when the SDK itself reports the confirmed revert and
+the receipt gasUsed equals the sent limit. That retry doubles prior gas, re-estimates
+at latest and retains the half-head cap. Every other revert is terminal. Operations
+are tracked by signer/source identity across renders and clicks, with at most two
+attempts ever. SDK success, uncertain sends and null/disagreeing later receipts never
+reopen a send. If state
 reads report 'arkiv serves state at the chain head only', use latest or pending.
 
 ## Reseed and verify

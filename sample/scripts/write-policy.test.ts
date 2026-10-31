@@ -73,3 +73,13 @@ test('uncertain send errors never retry or invent a submitted hash', async () =>
   assert.equal(provider.calls.filter(x => x.method === 'eth_sendTransaction').length, 1);
   assert.equal(submitted, false);
 });
+
+test('gas-exhaustion retry floor is re-estimated at latest and still obeys the head cap', async () => {
+  const provider = fixture({ estimate: 200000n });
+  await sendWithPolicy(provider, { from: 'owner' }, async () => {}, () => {}, undefined, 2000000n);
+  const tx = provider.calls.find(x => x.method === 'eth_sendTransaction')!.params![0] as { gas: string };
+  assert.equal(BigInt(tx.gas), 2000000n);
+  const capped = fixture({ estimate: 200000n, limit: 3000000n });
+  await assert.rejects(sendWithPolicy(capped, { from: 'owner' }, async () => {}, () => {}, undefined, 2000000n), /50%/);
+  assert.equal(capped.calls.filter(x => x.method === 'eth_sendTransaction').length, 0);
+});

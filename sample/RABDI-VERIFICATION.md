@@ -8,7 +8,7 @@ Registry publication, merge and production promotion require separate review app
 `scripts/verify-dgx.sh` runs the release checks and the already-available Node 22
 container checks. No testing dependency was added.
 
-- Linux ARM64, Node v24.22.1: 72 engine tests, 21 sample tests, typecheck, lint, package
+- Linux ARM64, Node v24.22.1: 72 engine tests, 31 sample tests, typecheck, lint, package
   build, sample build, archive installation, complete fixture output parity and CLI checks passed.
 - Node v22.23.4 on ARM64: the same engine/sample runtime tests, typechecks, library
   build and a separate clean archive consumer passed.
@@ -16,7 +16,7 @@ container checks. No testing dependency was added.
   The clean consumers compare complete JSON output for every shared fixture.
 - CLI checks cover unsupported public input, expected draft exit codes and refusal
   to overwrite an existing output file (`scripts/verify-release.mjs:46`).
-- Archive SHA-256: `7c44c02ef9f536e8a09ee6e19edb7c23eedbd1188c8235da9513a62cb583bbb1`.
+- Archive SHA-256: `a2ad2995a15cd040e4346adfbdcd34c8aff0095fb9721ce17147b55c7496d0e2`.
   The sample consumes this exact archive and its matching lockfile integrity.
 
 ## Live generated-schema proof
@@ -41,7 +41,7 @@ dedicated funded lane wallet injected through the secrets runner.
 `sample/src/write-policy.ts:13` estimates the exact SDK request through the wallet RPC
 at latest, stopping on errors. It supplies a fresh latest nonce and network gasPrice,
 uses max(1,000,000, 2 x estimate), and refuses more than half the latest head gas limit.
-There are zero automatic retries. Wrapped SDK errors preserve the clear policy reason.
+The bounded operation state below governs the only permitted retry. Wrapped SDK errors preserve the clear policy reason.
 Row data never reaches the application's server read proxy.
 
 - A 70,000-byte row at the maximum lifetime was refused before signing: estimate
@@ -59,17 +59,45 @@ Row data never reaches the application's server read proxy.
 - `scripts/verify-rabdi-lifetime.mjs` now checks failed unsigned estimation without
   signing. The earlier reverted boundary transaction above remains historical proof.
 
+## Retry state and packed documentation
+
+`sample/src/write-operation.ts:41` sets the operation guard before network calls.
+The sample retains that state by signer/source identity across new clicks, flags and
+model rerenders. SDK success stores submitted(hash) before receipt lookup and closes
+all future sends for that operation. Null or disagreeing receipts show a pending or
+disagreement outcome with the hash. Uncertain SDK errors remain locked.
+
+Only an SDK-reported confirmed revert, followed by a receipt whose gasUsed equals
+the sent gas, permits one retry. That retry re-estimates at latest with at least
+twice prior gas and the same half-head cap. Every other revert is terminal; no
+operation can exceed two attempts. Receipt reconciliation is read-only.
+
+All five cases pass through the actual SDK in the preview, including three attempted
+new clicks and a model rerender for each operation:
+
+| Case | Wallet send requests |
+| --- | ---: |
+| Confirmed non-gas revert | 1 |
+| Confirmed gas exhaustion | 2 |
+| SDK success, then disagreeing receipt | 1 |
+| SDK success, then null receipt and a new click | 1 |
+| Uncertain SDK result | 1 |
+
+The packed README contains the registry installation command for 1.0.0. The sample
+continues to consume its local archive until publication; the clean packed consumer
+asserts the README text as part of release verification.
+
 ## Preview and browser checks
 
 Existing project: `postgres-to-entity`.
-[Review preview](https://postgres-to-entity-ews0vj3q0-golem.vercel.app), deployment
-`dpl_Dd4bPvVo4oTwsk2g3VFKfM4BtYW2`. It retains the project's existing Vercel authentication.
+[Review preview](https://postgres-to-entity-pe572xj5u-golem.vercel.app), deployment
+`dpl_B95jjhS2TM6x2FMMJQaxxRqDEnip`. It retains the project's existing Vercel authentication.
 
 - A hydrated browser displayed the real seeded Rabdi entity through the fixed,
   owner-filtered server endpoint. Responses use `Cache-Control: no-store`.
 - All four examples converted and exported the current model, without illustrative
   values in exports. Edited row values followed indexed/stored/excluded destinations.
-- An isolated browser context exercised two simulated wallet transactions: explicit
+- An isolated browser context exercised all five outcome cases with a simulated wallet: explicit
   nonce, gas and current gasPrice; exact typed/indexed wire values; rejection, funding,
   consent invalidation, uncertain-write lock, and read-only receipt reconciliation.
   A 70,000-byte row uses twice its exact unsigned estimate; failed estimates and
@@ -88,8 +116,6 @@ Existing project: `postgres-to-entity`.
 
 ## Improvement observed
 
-Not blocking this candidate: the gas-budget refusal could link directly to Entity
-Expiration so users can review a shorter bounded duration. The live proof showed
-that the same 70 KB row fits with one day while the maximum duration exceeds the
-safe gas budget. The current message clearly refuses and suggests splitting or
-reducing the row before any signing.
+Not blocking this candidate: show the source identity in closed-operation history,
+so users can connect each retained transaction outcome to its row after editing or
+switching models. The per-identity guard already prevents repeat sends.
