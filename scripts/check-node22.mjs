@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 assert.equal(process.versions.node.split('.')[0], '22');
-const checks = [], root = process.cwd();
+const checks = [], root = process.cwd(), registry = process.argv.includes('--registry');
 mkdirSync('release-evidence', { recursive: true });
 function check(name, command, args, cwd = root) {
   const result = spawnSync(command, args, { cwd, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
@@ -22,7 +22,7 @@ check('sample-typecheck', process.execPath, ['node_modules/typescript/bin/tsc', 
 check('sample-tests', process.execPath, ['--experimental-strip-types', '--test', 'scripts/row.test.ts', 'scripts/query-guide.test.ts', 'scripts/write-policy.test.ts', 'scripts/write-operation.test.ts'], join(root, 'sample'));
 const consumer = mkdtempSync(join(tmpdir(), 'p2e-node22-'));
 writeFileSync(join(consumer, 'package.json'), JSON.stringify({ private: true, type: 'module' }));
-check('consumer-install', 'npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', resolve('sample/vendor/postgres-to-entity-1.0.0.tgz')], consumer);
+check('consumer-install', 'npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', registry ? 'postgres-to-entity@1.0.0' : resolve('sample/vendor/postgres-to-entity-1.0.0.tgz')], consumer);
 const packed = await import(pathToFileURL(join(consumer, 'node_modules/postgres-to-entity/dist/postgres.js')));
 const fixtures = JSON.parse(readFileSync('release-evidence/full-model-fixtures.json', 'utf8'));
 for (const fixture of fixtures.fixtures) assert.deepEqual(packed.generateModel(fixture.input), fixture.model, fixture.id + ' full parity on Node 22');

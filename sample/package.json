@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@arkiv-network/sdk": "1.0.0",
-    "postgres-to-entity": "file:vendor/postgres-to-entity-1.0.0.tgz",
+    "postgres-to-entity": "1.0.0",
     "viem": "2.56.3"
   },
   "devDependencies": {

@@ -3,9 +3,6 @@
 !/shared
 !/src
 !/public
-!/vendor
-/vendor/*
-!/vendor/postgres-to-entity-1.0.0.tgz
 !/index.html
 !/package.json
 !/package-lock.json

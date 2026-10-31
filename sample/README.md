@@ -1,7 +1,7 @@
 # postgres-to-entity sample
 
 PostgreSQL schema to SDK 1.0 typed columns, with an optional reviewed wallet write on Rabdi.
-The browser consumes vendor/postgres-to-entity-1.0.0.tgz, not sibling source.
+The browser consumes postgres-to-entity@1.0.0 from npm, pinned by the lockfile.
 
 ## Run
 

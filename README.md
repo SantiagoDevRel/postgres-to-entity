@@ -6,7 +6,7 @@ The converter is deterministic and offline. It does not connect, sign, import ro
 
 ## Install and run
 
-Node 22.12 through 23. Release installation (publication requires review approval):
+Node 22.12 through 23. Install the published 1.0.0 release from npm:
 
 ```sh
 npm install postgres-to-entity@1.0.0 @arkiv-network/sdk@1.0.0 viem

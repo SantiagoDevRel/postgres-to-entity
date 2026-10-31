@@ -64,7 +64,8 @@ Never exceed two send attempts for an operation. Keep all five COMMON retry case
 ## Verification and release
 
 Node 22.12-23. npm ci; npm test; npm run typecheck; npm run lint; npm run build.
-npm pack --pack-destination sample/vendor. Consumers must test the actual archive.
+Release verification: bash scripts/verify-dgx.sh --registry tests the published 1.0.0
+package in clean consumers. Pre-publication checks omit --registry and test npm pack.
 CLI exits: 0 modelled, 2 needs-input, 3 blocked, 1 I/O error. Output creation is exclusive.
 Unit tests preserve parser/privacy/identity/null/byte-bound regressions and lane M fixtures.
 Live reseeding: scripts/seed-rabdi.mjs, TEST_P2E wallet only, secrets runner injection.

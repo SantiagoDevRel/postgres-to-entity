@@ -5,7 +5,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-const root = process.cwd();
+const root = process.cwd(), registry = process.argv.includes('--registry');
 const checks = [];
 mkdirSync('release-evidence', { recursive: true });
 function run(name, args, cwd = root) {
@@ -14,23 +14,26 @@ function run(name, args, cwd = root) {
   console.log(name + ': ' + (result.status === 0 ? 'PASS' : 'FAIL'));
   if (result.status !== 0) console.log(((result.stdout ?? '') + (result.stderr ?? '')).slice(-12000));
   checks.push({ name, code: result.status });
-  return result.status === 0;
+  writeFileSync(join(root, 'release-evidence/verification.json'), JSON.stringify({ arch: process.arch, node: process.version, checks }, null, 2));
+  assert.equal(result.status, 0, name + ' failed; stop at the first failing check.');
+  return true;
 }
 run('unit', ['test']);
 run('typecheck', ['run', 'typecheck']);
 run('lint', ['run', 'lint']);
 const built = run('build', ['run', 'build']);
-if (built && run('pack', ['pack', '--pack-destination', 'sample/vendor'])) {
-  const archive = resolve('sample/vendor/postgres-to-entity-1.0.0.tgz');
+if (built && (registry || run('pack', ['pack', '--pack-destination', 'sample/vendor']))) {
+  const archive = registry ? 'postgres-to-entity@1.0.0' : resolve('sample/vendor/postgres-to-entity-1.0.0.tgz');
   // A rebuilt local archive can keep its filename/version; explicitly resolve it
   // so npm refreshes integrity instead of reusing the old file dependency lock.
-  run('sample-lock', ['install', './vendor/postgres-to-entity-1.0.0.tgz', '--package-lock-only', '--ignore-scripts', '--no-audit', '--no-fund'], join(root, 'sample'));
+  if (!registry) run('sample-lock', ['install', './vendor/postgres-to-entity-1.0.0.tgz', '--package-lock-only', '--ignore-scripts', '--no-audit', '--no-fund'], join(root, 'sample'));
   if (run('sample-install', ['ci', '--no-audit', '--no-fund'], join(root, 'sample'))) {
     run('sample-build', ['run', 'build'], join(root, 'sample'));
     const sampleTest = spawnSync(process.execPath, ['--experimental-strip-types', '--test', 'scripts/row.test.ts', 'scripts/query-guide.test.ts', 'scripts/write-policy.test.ts', 'scripts/write-operation.test.ts'], { cwd: join(root, 'sample'), encoding: 'utf8' });
     writeFileSync('release-evidence/sample-tests.log', (sampleTest.stdout ?? '') + (sampleTest.stderr ?? ''));
     checks.push({ name: 'sample-tests', code: sampleTest.status });
     console.log('sample-tests: ' + (sampleTest.status === 0 ? 'PASS' : 'FAIL'));
+    assert.equal(sampleTest.status, 0, 'sample-tests failed; stop.');
     if (sampleTest.status !== 0) console.log(((sampleTest.stdout ?? '') + (sampleTest.stderr ?? '')).slice(-12000));
   }
   const consumer = join(process.env.TMPDIR, 'p2e-consumer');
@@ -61,7 +64,12 @@ if (built && run('pack', ['pack', '--pack-destination', 'sample/vendor'])) {
     assert.equal(invalid.status, 3, 'Public CLI rejects alternate inputs');
     checks.push({ name: 'consumer-full-parity-and-cli', code: 0 });
   }
-  writeFileSync('release-evidence/archive-sha256.txt', createHash('sha256').update(readFileSync(archive)).digest('hex') + '\n');
+  if (registry) {
+    run('registry-archive', ['pack', 'postgres-to-entity@1.0.0', '--ignore-scripts', '--pack-destination', 'release-evidence']);
+    const digest = createHash('sha256').update(readFileSync('release-evidence/postgres-to-entity-1.0.0.tgz')).digest('hex');
+    assert.equal(digest, 'a2ad2995a15cd040e4346adfbdcd34c8aff0095fb9721ce17147b55c7496d0e2');
+    writeFileSync('release-evidence/archive-sha256.txt', digest + '\n');
+  } else writeFileSync('release-evidence/archive-sha256.txt', createHash('sha256').update(readFileSync(archive)).digest('hex') + '\n');
 }
 writeFileSync('release-evidence/verification.json', JSON.stringify({ arch: process.arch, node: process.version, checks }, null, 2));
 if (checks.some(check => check.code !== 0)) process.exitCode = 1;
