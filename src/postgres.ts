@@ -1,6 +1,8 @@
 ﻿import { generateModel as plan, modelMarkdown } from './planner.ts';
 import type { ModelRequest as InternalRequest, EntityModel } from './planner.ts';
-export type { EntityModel, EntityDesign, Filter, FieldRef, DesignIssue } from './planner.ts';
+export type { EntityModel, EntityDesign, ModelColumn, ColumnType, Filter, FieldRef, DesignIssue } from './planner.ts';
+export { MAX_LIFETIME_BLOCKS } from './planner.ts';
+export { toSdkSchema } from './sdk-schema.ts';
 export type ModelRequest = Omit<InternalRequest, 'schema' | 'sql'> & { sql: string };
 /** PostgreSQL CREATE TABLE definitions only. No row import or chain writes. */
 export function generateModel(request: unknown): EntityModel {

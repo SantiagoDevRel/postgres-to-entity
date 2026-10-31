@@ -118,9 +118,9 @@ button:disabled { opacity:.55; cursor:default; filter:none; }
 .entity-metadata dd { font-size:14px; margin:0; overflow-wrap:anywhere; }
 .entity-metadata dd small { display:block; margin-top:4px; }
 .entity-metadata code { color:var(--accent); }
-.entity-attributes,.entity-payload { border-top:1px solid var(--field-border); padding:20px; }
-.entity-attributes h3,.entity-payload h3 { display:flex; align-items:center; gap:4px; }
-.entity-attributes>p,.entity-payload>p { margin:8px 0 16px; }
+.entity-attributes,.entity-stored { border-top:1px solid var(--field-border); padding:20px; }
+.entity-attributes h3,.entity-stored h3 { display:flex; align-items:center; gap:4px; }
+.entity-attributes>p,.entity-stored>p { margin:8px 0 16px; }
 .attribute-values { margin:0; font-size:14px; }
 .attribute-values>div { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px 20px; padding:16px 0; border-top:1px solid var(--border); }
 .attribute-values dt,.attribute-values dd { margin:0; overflow-wrap:anywhere; }
@@ -149,7 +149,7 @@ footer details p { max-width:900px; }
   .actions button,#generate,#analyze { width:100%; }
   .mapping>div,.attribute-values>div { grid-template-columns:minmax(0,1fr); padding:12px; }
   .theme { font-size:14px; }
-  .entity-metadata>div,.entity-attributes,.entity-payload { padding:12px 16px 16px; }
+  .entity-metadata>div,.entity-attributes,.entity-stored { padding:12px 16px 16px; }
   .field-choice { grid-template-columns:minmax(0,1fr); gap:8px; }
   .source-actions { gap:8px; }
 }
@@ -235,7 +235,7 @@ input[type="datetime-local"] { width:100%; min-width:0; border:1px solid var(--f
 .field-choice .field-filters { align-self:start; }
 .entity-preview { border:0; padding:0; margin:24px 0 0; }
 .entity-content { display:grid; grid-template-columns:minmax(0,1fr); }
-.entity-payload { min-width:0; }
+.entity-stored { min-width:0; }
 .entity-metadata { border-top:1px solid var(--border); }
 .entity-metadata>div { border-top:0; }
 .entity-metadata dt { min-height:44px; }
@@ -253,7 +253,7 @@ input[type="datetime-local"] { width:100%; min-width:0; border:1px solid var(--f
 footer { font-size:14px; }
 @container(min-width:620px) {
   .entity-content { grid-template-columns:repeat(2,minmax(0,1fr)); }
-  .entity-content .entity-payload { border-left:1px solid var(--field-border); }
+  .entity-content .entity-stored { border-left:1px solid var(--field-border); }
   .entity-content .attribute-values>div { grid-template-columns:minmax(0,1fr); gap:8px; }
 }
 @media(max-width:520px) {

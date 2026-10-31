@@ -1,5 +1,6 @@
 ﻿import type { EntityDesign, EntityModel } from 'postgres-to-entity';
-import { i32, dec, str, bool, type AttributeInputs } from '@arkiv-network/sdk';
+import { i32, dec, str, bool, bytes, type ArkivValue } from '@arkiv-network/sdk/schema';
+import {sourceColumns} from './model-columns.ts';
 
 export function validateValue(value: unknown, type: string, nullable: boolean, name: string): unknown {
   const fail = (reason:string):never=>{throw Error(name + ': ' + reason);};
@@ -41,10 +42,11 @@ export function validateValue(value: unknown, type: string, nullable: boolean, n
     if(typeof value!=='string')return fail('use a string.');const bound=t.match(/\((\d+)\)/);if(bound&&[...value].length>Number(bound[1]))return fail('text exceeds the declared character limit.');return value;
   }
   if(t==='json'||t==='jsonb'){
+    if(!value || typeof value!=='object' || Array.isArray(value) || Object.keys(value).length!==1 || !Object.hasOwn(value,'value')) return fail('use {value: ...} to distinguish JSON null from SQL NULL (null).');
     const inspect=(v:unknown):void=>{if(typeof v==='number'&&(!Number.isFinite(v)||(Number.isInteger(v)&&!Number.isSafeInteger(v))))fail('large JSON integers must be exact strings.');if(v&&typeof v==='object')Object.values(v).forEach(inspect);};inspect(value);return value;
   }
   if(t==='bytea')return typeof value==='string'&&/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)?value:fail('use base64 text.');
-  return fail('the model supports this payload type, but this demo has no verified row encoder for '+type+'. Use the agent handoff.');
+  return fail('the model preserves this source type, but this demo has no verified row encoder for '+type+'. Use the agent handoff.');
 }
 
 export function prepareRow(entity:EntityDesign, model:EntityModel, raw:string) {
@@ -53,27 +55,51 @@ export function prepareRow(entity:EntityDesign, model:EntityModel, raw:string) {
   if(new TextEncoder().encode(raw).length>100*1024)throw Error('Row exceeds 100 KiB.');
   const row:unknown=JSON.parse(raw);
   if(!row||typeof row!=='object'||Array.isArray(row))throw Error('Provide one source row as a JSON object.');
-  const values=row as Record<string,unknown>;
-  const columns=new Map(entity.payload.map(p=>[p.source.column,{type:p.sourceType,nullable:p.nullable}]));
-  entity.attributes.forEach(a=>{if(a.source)columns.set(a.source.column,{type:a.sourceType??a.type,nullable:a.nullable??false});});
-  for(const name of Object.keys(values))if(!columns.has(name))throw Error(name+': unknown or excluded field. Remove it before deploying.');
-  const checked=new Map<string,unknown>();
-  columns.forEach((spec,name)=>{if(!Object.hasOwn(values,name))throw Error(name+': supply a value or explicit null.');checked.set(name,validateValue(values[name],spec.type,spec.nullable,name));});
-  const pairs: Array<[string,unknown]>=[];
-  const attributes:Record<string, AttributeInputs[string]>=Object.create(null);
-  for(const a of entity.attributes){
-    const value=a.source?checked.get(a.source.column):a.encoding;
+  const values=row as Record<string,unknown>,columns=sourceColumns(entity);
+  for(const name of Object.keys(values))if(!columns.some(c=>c.source.column===name))throw Error(name+': unknown or excluded field. Remove it before deploying.');
+  const encoded:Record<string,ArkivValue>=Object.create(null);
+  const indexed:Record<string,unknown>=Object.create(null),stored:Record<string,unknown>=Object.create(null);
+  for(const column of columns){
+    const name=column.source.column;
+    if(!Object.hasOwn(values,name))throw Error(name+': supply a value or explicit null.');
+    // PostgreSQL array lower bounds cannot be inferred from a JSON array.
+    let value:unknown;
+    if(/\[/.test(column.sourceType)&&values[name]!==null){
+      const envelope=values[name] as {values?:unknown;lowerBounds?:unknown};
+      if(!envelope||typeof envelope!=='object'||Array.isArray(envelope)||!Array.isArray(envelope.lowerBounds)||!envelope.lowerBounds.every(Number.isSafeInteger)||!Object.hasOwn(envelope,'values')||Object.keys(envelope).some(k=>!['values','lowerBounds'].includes(k)))throw Error(name+': use {values: [...], lowerBounds: [...]} with the source array bounds.');
+      const base=column.sourceType.replace(/\[\d*\]/g,'');
+      const inspect=(input:unknown,depth=0):{shape:number[];value:unknown}=>{
+        if(depth>20)throw Error(name+': array nesting is too deep for this demo.');
+        if(!Array.isArray(input))return {shape:[],value:validateValue(input,base,true,name)};
+        const parts=input.map(item=>inspect(item,depth+1));
+        const shape=parts[0]?.shape??[];
+        if(parts.some(part=>JSON.stringify(part.shape)!==JSON.stringify(shape)))throw Error(name+': PostgreSQL arrays must be rectangular.');
+        return {shape:[input.length,...shape],value:parts.map(part=>part.value)};
+      };
+      if(!Array.isArray(envelope.values))throw Error(name+': values must be an array.');
+      const checked=inspect(envelope.values);
+      const dimensions=envelope.values.length===0?0:checked.shape.length;
+      if(envelope.lowerBounds.length!==dimensions)throw Error(name+': supply one source lower bound per actual dimension; empty arrays have no bounds.');
+      if(checked.shape.slice(1).includes(0))throw Error(name+': nested empty subarrays are not a PostgreSQL array shape.');
+      for(let i=0;i<dimensions;i++){
+        const lower=Number(envelope.lowerBounds[i]),upper=lower+checked.shape[i]-1;
+        if(lower< -2147483648||lower>2147483647||upper>2147483647)throw Error(name+': array bounds exceed PostgreSQL limits.');
+      }
+      value={values:checked.value,lowerBounds:envelope.lowerBounds};
+    }else value=validateValue(values[name],column.sourceType,column.nullable,name);
     if(value===null)continue;
-    if(a.type==='i32')attributes[a.name]=i32(value as number);
-    else if(a.type==='dec')attributes[a.name]=dec(value as string);
-    else if(a.type==='bool')attributes[a.name]=bool(value as boolean);
-    else if(a.type==='str'){
-      const bound=a.encoding.match(/maximum (\d+) bytes/),length=new TextEncoder().encode(value as string).length;
-      if(bound&&length>Number(bound[1]))throw Error(a.name+': '+length+' UTF-8 bytes; this attribute allows '+bound[1]+'. Shorten the value or change this field to Payload above. Nothing was truncated.');
-      attributes[a.name]=str(value as string);
-    }else throw Error('This example cannot resolve '+a.type+' attributes.');
-    pairs.push([a.name,(attributes[a.name] as {value:unknown}).value]);
+    if(column.type==='i32')encoded[column.name]=i32(value as number);
+    else if(column.type==='dec')encoded[column.name]=dec(value as string);
+    else if(column.type==='bool')encoded[column.name]=bool(value as boolean);
+    else if(column.type==='str'){
+      const length=new TextEncoder().encode(value as string).length;
+      if(length>(column.maxBytes??128))throw Error(name+': '+length+' UTF-8 bytes; this column allows '+(column.maxBytes??128)+'. Nothing was truncated.');
+      encoded[column.name]=str(value as string);
+    }else if(column.type==='bytes'){
+      const binary=column.sourceType==='bytea'?Uint8Array.from(atob(value as string),c=>c.charCodeAt(0)):new TextEncoder().encode(JSON.stringify(value));
+      encoded[column.name]=bytes(binary);
+    }else throw Error('This demo cannot encode '+column.type+' columns.');
+    (column.indexed?indexed:stored)[column.name]=column.type==='bytes'?value:encoded[column.name].value;
   }
-  const payload=Object.fromEntries(entity.payload.map(p=>[p.source.column,checked.get(p.source.column)]));
-  return {attributes,payload,display:{attributes:Object.fromEntries(pairs),payload,contentType:'application/json'}};
+  return {values:encoded,display:{indexed:Object.fromEntries(Object.entries(indexed)),stored:Object.fromEntries(Object.entries(stored))}};
 }

@@ -8,7 +8,7 @@ const baseline = {
   question: "Which accounts have a negative balance?",
   privacyReviewed: true,
   filters: [{ table: "accounts", column: "balance", operator: "range" }],
-  policies: [{ table: "accounts", owner: "Source account wallet", expiration: "30 days, extend while the account is active" }],
+  policies: [{ table: "accounts", owner: "Source account wallet", expiration: "30 days, extend while the account is active", expirationBlocks: 1296000 }],
 };
 
 describe("portable entity models", () => {
@@ -24,11 +24,11 @@ describe("portable entity models", () => {
   it("does not invent a primary key from a CHECK string", () => {
     const m = generateModel({sql: "CREATE TABLE t (id int, note text, CHECK (note <> 'PRIMARY KEY (id)'));"});
     assert.deepEqual(m.entities[0]!.identity, []);
-    assert.equal(m.entities[0]!.payload[0]!.nullable, true);
+    assert.equal(m.entities[0]!.schema.columns.filter(p => p.source && !p.indexed)[0]!.nullable, true);
   });
   it("preserves timestamp precision/timezone and blocks a partially read qualified type", () => {
     const m = generateModel({sql: "CREATE TABLE t (at timestamp(6) with time zone);"});
-    assert.equal(m.entities[0]!.payload[0]!.sourceType, "timestamp(6) with time zone");
+    assert.equal(m.entities[0]!.schema.columns.filter(p => p.source && !p.indexed)[0]!.sourceType, "timestamp(6) with time zone");
     assert.equal(generateModel({sql: "CREATE TABLE t (at pg_catalog.timestamp);"}).status, "blocked");
   });
   it("does not invent id when a source reference omits its target column", () => {
@@ -43,10 +43,10 @@ describe("portable entity models", () => {
     const model = generateModel(baseline);
     assert.equal(model.status, "modelled");
     assert.equal(model.scope, "model-only");
-    assert.equal(model.entities[0]!.attributes.find(a => a.source?.column === "balance")!.type, "dec");
-    assert.equal(model.entities[0]!.payload.length, 5);
-    assert.equal(model.format, "arkiv-entity-model/2");
-    assert.ok(!model.entities[0]!.payload.some(p => p.source.column === "balance"));
+    assert.equal(model.entities[0]!.schema.columns.filter(a => a.indexed).find(a => a.source?.column === "balance")!.type, "dec");
+    assert.equal(model.entities[0]!.schema.columns.filter(p => p.source && !p.indexed).length, 5);
+    assert.equal(model.format, "arkiv-entity-model/3");
+    assert.ok(!model.entities[0]!.schema.columns.filter(p => p.source && !p.indexed).some(p => p.source.column === "balance"));
     assert.deepEqual(model.entities[0]!.identity, ["id"]);
     assert.doesNotMatch(modelMarkdown(model), /buildQuery\(|createEntity\(/);
   });
@@ -59,14 +59,14 @@ describe("portable entity models", () => {
   it("does not infer product decisions from field names", () => {
     const model = generateModel({ sql: "CREATE TABLE t (id int, expires_at timestamp, secret text);" });
     assert.equal(model.status, "needs-input");
-    assert.equal(model.entities[0]!.payload.length, 3);
+    assert.equal(model.entities[0]!.schema.columns.filter(p => p.source && !p.indexed).length, 3);
     assert.equal(model.entities[0]!.expiration, null);
     assert.ok(model.decisions.some(d => d.code === "privacy"));
   });
   it("accounts for explicit privacy exclusions and rejects private filters", () => {
     const model = generateModel({ ...baseline, privateFields: [{ table: "accounts", column: "balance" }] });
     assert.equal(model.status, "blocked");
-    assert.equal(model.entities[0]!.payload.length, 5);
+    assert.equal(model.entities[0]!.schema.columns.filter(p => p.source && !p.indexed).length, 5);
     assert.equal(model.excluded.length, 1);
     assert.ok(model.blockers.some(b => b.code === "private-query"));
   });
@@ -77,7 +77,7 @@ describe("portable entity models", () => {
     assert.equal(model.entities.length, 2);
     assert.deepEqual(model.entities[0]!.identity, ["id", "other"]);
     assert.deepEqual(model.entities[0]!.references[0]!.target, { table: "b.t", column: "id" });
-    assert.equal(model.entities[0]!.payload[0]!.nullable, false);
+    assert.equal(model.entities[0]!.schema.columns.filter(p => p.source && !p.indexed)[0]!.nullable, false);
     assert.ok(model.decisions.some(d => d.code === "constraints"));
   });
   it("never produces a model from partially parsed SQL", () => {
@@ -103,8 +103,8 @@ describe("portable entity models", () => {
       filters: [{ table: "documents", column: "state", operator: "eq" }],
     });
     assert.equal(m.blockers.length, 0);
-    assert.equal(m.entities[0]!.attributes[2]!.type, "str");
-    assert.equal(m.entities[0]!.payload.find(p => p.source.column === "data")!.sourceType, "jsonb");
+    assert.equal(m.entities[0]!.schema.columns.filter(a => a.indexed)[0]!.type, "str");
+    assert.equal(m.entities[0]!.schema.columns.filter(p => p.source && !p.indexed).find(p => p.source.column === "data")!.sourceType, "jsonb");
   });
   it("rejects unknown fields, options and wrong runtime types", () => {
     for (const request of [
@@ -133,7 +133,7 @@ describe("portable entity models", () => {
       assert.ok(model.blockers.some(b => b.code === "query-encoding"), type);
     }
   });
-  it("checks filter operators against attribute types", () => {
+  it("checks filter operators against column types", () => {
     for (const [type, operator] of [["boolean", "range"], ["varchar(16)", "range"], ["int", "prefix"], ["text", "contains"]]) {
       const model = generateModel({ sql: "CREATE TABLE t (v " + type + ");", filters: [{ table: "t", column: "v", operator }] });
       assert.equal(model.status, "blocked");
@@ -143,30 +143,30 @@ describe("portable entity models", () => {
     const model = generateModel({ ...baseline, filters: [{ table: "accounts", column: "tags", operator: "contains" }] });
     assert.equal(model.status, "needs-input");
     assert.equal(model.entities.length, 2);
-    const relation = model.entities.find(e => e.attributes.some(a => a.name === "parent"))!;
-    assert.equal(relation.attributes.find(a => a.name === "value")!.type, "i32");
-    assert.equal(relation.attributes.find(a => a.name === "value")!.sourceType, "int");
-    assert.equal(relation.attributes.find(a => a.name === "value")!.nullEncoding, "omit-attribute");
-    assert.deepEqual(relation.payload, []);
-    assert.equal(relation.payloadMetadata![0]!.name, "ordinal");
-    assert.match(relation.payloadMetadata![0]!.encoding, /row-major/);
+    const relation = model.entities.find(e => e.schema.columns.filter(a => a.indexed).some(a => a.name === "parent"))!;
+    assert.equal(relation.schema.columns.filter(a => a.indexed).find(a => a.name === "value")!.type, "i32");
+    assert.equal(relation.schema.columns.filter(a => a.indexed).find(a => a.name === "value")!.sourceType, "int");
+    assert.equal(relation.schema.columns.filter(a => a.indexed).find(a => a.name === "value")!.nullEncoding, "omit-column");
+    assert.deepEqual(relation.schema.columns.filter(p => p.source && !p.indexed), []);
+    assert.equal(relation.schema.columns.find(c => c.name === "ordinal")!.name, "ordinal");
+    assert.match(relation.schema.columns.find(c => c.name === "ordinal")!.encoding, /row-major/);
     assert.ok(model.decisions.some(d => d.code === "array-projection-consistency"));
     assert.match(relation.cardinality, /duplicates/);
-    assert.ok(model.entities.find(e => e.kind === "accounts")!.payload.some(p => p.source.column === "tags"));
+    assert.ok(model.entities.find(e => e.kind === "accounts")!.schema.columns.filter(p => p.source && !p.indexed).some(p => p.source.column === "tags"));
   });
   it("keeps all fields and flags budget overflow, without silently moving requested filters", () => {
     const fields = Array.from({ length: 35 }, (_, i) => "v" + i);
     const model = generateModel({ sql: "CREATE TABLE t (" + fields.map(f => f + " int").join(",") + ");",
       filters: fields.map(column => ({ table: "t", column, operator: "eq" })) });
-    assert.equal(model.entities[0]!.payload.length, 0);
-    assert.equal(model.entities[0]!.attributes.length, 37);
-    assert.ok(model.blockers.some(b => b.code === "attribute-budget"));
+    assert.equal(model.entities[0]!.schema.columns.filter(p => p.source && !p.indexed).length, 0);
+    assert.equal(model.entities[0]!.schema.columns.filter(a => a.indexed).length, 35);
+    assert.ok(model.blockers.some(b => b.code === "column-budget"));
   });
-  it("resolves normalization collisions and reserved attribute names without loss", () => {
+  it("resolves normalization collisions and reserved column names without loss", () => {
     const fields = ["and", "OR", "a b", "a_b", "x".repeat(60), "x".repeat(59) + "y"];
     const model = generateModel({ schema: { tables: [{ name: "t", columns: fields.map(name => ({ name, type: "int" })) }] },
       filters: fields.map(column => ({ table: "t", column, operator: "eq" })) });
-    const names = model.entities[0]!.attributes.map(a => a.name);
+    const names = model.entities[0]!.schema.columns.filter(a => a.indexed).map(a => a.name);
     assert.equal(new Set(names).size, names.length);
     assert.ok(names.every(n => n.length <= 32));
     assert.ok(!names.includes("and") && !names.includes("or"));
@@ -183,19 +183,19 @@ describe("portable entity models", () => {
     const m = generateModel({ ...baseline, filters: columns.map(column => ({ table: "accounts", column, operator: "eq" })) });
     assert.equal(m.status, "modelled");
     const entity = m.entities[0]!;
-    const attrs = entity.attributes.filter(a => a.source);
+    const attrs = entity.schema.columns.filter(a => a.indexed).filter(a => a.source);
     assert.deepEqual(attrs.map(a => a.source!.column), columns);
-    assert.deepEqual(entity.payload.map(p => p.source.column), ["note", "tags"]);
-    assert.ok(attrs.every(a => !entity.payload.some(p => p.source.column === a.source!.column)));
+    assert.deepEqual(entity.schema.columns.filter(p => p.source && !p.indexed).map(p => p.source.column), ["note", "tags"]);
+    assert.ok(attrs.every(a => !entity.schema.columns.filter(p => p.source && !p.indexed).some(p => p.source.column === a.source!.column)));
     assert.deepEqual(attrs.map(a => [a.sourceType, a.nullable, a.nullEncoding]), [
-      ["int", false, "forbidden"], ["bigint", true, "omit-attribute"],
-      ["numeric(20,8)", true, "omit-attribute"], ["varchar(16)", true, "omit-attribute"],
+      ["int", false, "forbidden"], ["bigint", true, "omit-column"],
+      ["numeric(20,8)", true, "omit-column"], ["varchar(16)", true, "omit-column"],
     ]);
     assert.match(attrs[1]!.encoding, /never convert through a JavaScript number/);
     assert.match(attrs[2]!.encoding, /Exact base-10 string/);
-    assert.ok(m.guarantees.some(g => /complete attribute set/.test(g) && /partial selection/.test(g)));
+    assert.ok(m.guarantees.some(g => /complete schema column set/.test(g) && /partial selection/.test(g)));
   });
-  it("keeps source identities and foreign keys resolvable when both are attributes", () => {
+  it("keeps source identities and foreign keys resolvable when both are indexed columns", () => {
     const m = generateModel({
       sql: "CREATE TABLE a (id int PRIMARY KEY); CREATE TABLE b (id int PRIMARY KEY, parent int REFERENCES a(id));",
       filters: [
@@ -206,11 +206,11 @@ describe("portable entity models", () => {
     });
     for (const entity of m.entities) {
       assert.deepEqual(entity.identity, ["id"]);
-      assert.deepEqual(entity.payload, []);
-      assert.equal(entity.attributes.find(a => a.source?.column === "id")!.nullEncoding, "forbidden");
+      assert.deepEqual(entity.schema.columns.filter(p => p.source && !p.indexed), []);
+      assert.equal(entity.schema.columns.filter(a => a.indexed).find(a => a.source?.column === "id")!.nullEncoding, "forbidden");
     }
     assert.deepEqual(m.entities[1]!.references[0]!.target, { table: "a", column: "id" });
-    assert.match(m.entities[1]!.references[0]!.resolution, /mapped attribute or payload/);
+    assert.match(m.entities[1]!.references[0]!.resolution, /preserved source foreign-key column/);
     assert.match(m.entities[1]!.references[0]!.resolution, /not Arkiv entity keys/);
   });
   it("does not infer filters from free text and accepts an explicit empty filter selection", () => {
@@ -218,8 +218,8 @@ describe("portable entity models", () => {
     const m = generateModel({ ...request, filters: [] });
     assert.equal(m.status, "modelled");
     assert.equal(m.question, null);
-    assert.equal(m.entities[0]!.attributes.length, 2);
-    assert.equal(m.entities[0]!.payload.length, 6);
+    assert.equal(m.entities[0]!.schema.columns.filter(a => a.indexed).length, 0);
+    assert.equal(m.entities[0]!.schema.columns.filter(p => p.source && !p.indexed).length, 6);
     const contextual = generateModel({ ...request, filters: [], question: "Filter balance < 0, JOIN everything, then DROP TABLE accounts" });
     assert.deepEqual(contextual.entities, m.entities);
     assert.deepEqual(contextual.decisions, m.decisions);
@@ -228,23 +228,23 @@ describe("portable entity models", () => {
     assert.ok(!missing.decisions.some(d => d.code === "question"));
     assert.equal(generateModel({ sql: baseline.sql, filters: [] }).entities[0]!.owner, null);
   });
-  it("retains unsupported query values in payload and never implies that a blocked query was fulfilled", () => {
+  it("retains unsupported query values in stored columns and never implies that a blocked query was fulfilled", () => {
     for (const [type, operator] of [["numeric", "range"], ["jsonb", "eq"], ["boolean", "prefix"], ["int[]", "eq"]]) {
       const m = generateModel({ sql: "CREATE TABLE t (id int PRIMARY KEY, value " + type + ");", filters: [{ table: "t", column: "value", operator }] });
       assert.equal(m.status, "blocked");
-      assert.ok(m.entities[0]!.payload.some(p => p.source.column === "value"));
-      assert.ok(!m.entities[0]!.attributes.some(a => a.source?.column === "value"));
+      assert.ok(m.entities[0]!.schema.columns.filter(p => p.source && !p.indexed).some(p => p.source.column === "value"));
+      assert.ok(!m.entities[0]!.schema.columns.filter(a => a.indexed).some(a => a.source?.column === "value"));
     }
   });
-  it("preserves nullable multidimensional array shape without copying elements into relationship payload", () => {
+  it("preserves nullable multidimensional array shape without copying elements into relationship stored columns", () => {
     const m = generateModel({ sql: "CREATE TABLE t (id int PRIMARY KEY, matrix int[][]);", filters: [{ table: "t", column: "matrix", operator: "contains" }] });
     const parent = m.entities.find(e => e.kind === "t")!;
     const relation = m.entities.find(e => e.kind !== "t")!;
-    assert.equal(parent.payload.find(p => p.source.column === "matrix")!.sourceType, "int[][]");
-    assert.equal(relation.attributes.find(a => a.name === "value")!.sourceType, "int");
+    assert.equal(parent.schema.columns.filter(p => p.source && !p.indexed).find(p => p.source.column === "matrix")!.sourceType, "int[][]");
+    assert.equal(relation.schema.columns.filter(a => a.indexed).find(a => a.name === "value")!.sourceType, "int");
     assert.match(relation.cardinality, /Null and empty arrays/);
     assert.match(relation.cardinality, /including null elements/);
-    assert.deepEqual(relation.payload, []);
-    assert.match(relation.payloadMetadata![0]!.encoding, /null elements/);
+    assert.deepEqual(relation.schema.columns.filter(p => p.source && !p.indexed), []);
+    assert.match(relation.schema.columns.find(c => c.name === "ordinal")!.encoding, /null elements/);
   });
 });

@@ -1,0 +1,32 @@
+{
+  "status": "proposed_contract_awaiting_lane_N2",
+  "format": "arkiv-entity-model/3",
+  "sdkVersion": "1.0.0",
+  "fixtures": [
+    {
+      "id": "typed-filter-and-stored-bytes",
+      "input": {
+        "sql": "CREATE TABLE tasks (id UUID PRIMARY KEY, score INTEGER NOT NULL, title VARCHAR(24) NOT NULL, body BYTEA);",
+        "filters": [{"table": "tasks", "column": "score", "operator": "range"}],
+        "privacyReviewed": true,
+        "policies": [{"table": "tasks", "owner": "Connected signing wallet", "expiration": "One day, extended only by explicit owner authorization"}]
+      },
+      "requiredColumnProjections": [
+        {"source": {"table": "tasks", "column": "score"}, "type": "i32", "indexed": true},
+        {"source": {"table": "tasks", "column": "title"}, "type": "str", "indexed": false},
+        {"source": {"table": "tasks", "column": "body"}, "type": "bytes", "indexed": false}
+      ],
+      "requiredPreservation": ["id source identity", "body null distinction", "owner and expiration decisions", "UTF-8 source encoding decision; no truncation or implicit byte-bound assumption"]
+    },
+    {
+      "id": "unsupported-byte-filter",
+      "input": {"sql": "CREATE TABLE assets (id UUID PRIMARY KEY, archive BYTEA);", "filters": [{"table": "assets", "column": "archive", "operator": "eq"}], "privacyReviewed": true},
+      "requiredOutcome": "blocked or needs-input with a concrete non-filterable bytes finding; no indexed bytes column"
+    },
+    {
+      "id": "system-field-only-reads",
+      "input": {"sql": "CREATE TABLE notes (id UUID PRIMARY KEY, title VARCHAR(64));", "filters": [], "privacyReviewed": true},
+      "requiredOutcome": "no source-field index inference; preserved id/title values and explicit owner/expiration decisions"
+    }
+  ]
+}
