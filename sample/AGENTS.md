@@ -2,7 +2,7 @@ Edit instructions only in AGENTS.md; CLAUDE.md only imports this file.
 
 # Sample rules
 
-Read ../AGENTS.md and README.md. Use registry postgres-to-entity@1.0.0, SDK 1.0.0 and Rabdi 7794095.
+Read ../AGENTS.md and README.md. Use registry postgres-to-entity@1.0.1, SDK 1.0.0 and Rabdi 7794095.
 Preserve the existing three-step UI, Arkiv tokens, responsive layout and text rendering.
 Only explicit field choices drive indexing. Store other source values in named columns;
 arrays remain stored here. bytes columns cannot be indexed. Keep explicit UTF-8 bounds.
