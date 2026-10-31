@@ -1,6 +1,8 @@
-﻿import { createWalletClient, createPublicClient, jsonToPayload, ExpirationTime, ENTITY_EVENTS_ABI } from '@arkiv-network/sdk';
-import { tiramisu } from '@arkiv-network/sdk/chains';
-import { custom, http, isAddress, decodeEventLog, type EIP1193Provider, type Address } from 'viem';
+﻿import { createWalletClient, createPublicClient, ExpirationTime, ENTITY_EVENTS_ABI } from '@arkiv-network/sdk';
+import { rabdiBrowser as rabdi } from './network';
+import {toSdkSchema} from 'postgres-to-entity';
+import {sourceColumns} from './model-columns';
+import { createPublicClient as createEvmPublicClient, custom, http, isAddress, decodeEventLog, type EIP1193Provider, type Address } from 'viem';
 import type { EntityDesign, EntityModel } from 'postgres-to-entity';
 import { prepareRow } from './row';
 import { exampleValue } from './entity-preview';
@@ -8,8 +10,9 @@ import { defaultFlags, type DemoFlags } from './creation-flags';
 import { renderRowPreview } from './row-preview';
 
 type Provider=EIP1193Provider & {on?:(event:string,callback:(...args:unknown[])=>void)=>void};
-const rpc=createPublicClient({chain:tiramisu,transport:http(undefined,{timeout:15000,retryCount:1})});
-const chainHex='0x'+tiramisu.id.toString(16);
+const rpc=createPublicClient({chain:rabdi,transport:http('/api/rpc',{timeout:15000,retryCount:1})});
+const fees=createEvmPublicClient({chain:rabdi,transport:http('/api/rpc',{timeout:15000,retryCount:1})});
+const chainHex='0x'+rabdi.id.toString(16);
 const $=<T extends HTMLElement>(id:string)=>document.getElementById(id) as T;
 const needsRuleReview=(e:EntityDesign)=>e.applicationConstraints.some(rule=>!/^[^\s]+\s+[a-z0-9]+(?:\([^)]*\))?\s+(?:PRIMARY\s+KEY|NOT\s+NULL)\s*$/i.test(rule));
 const short=(v:string)=>v.slice(0,8)+'…'+v.slice(-6);
@@ -69,26 +72,27 @@ export function initDeployment(){
     renderRowPreview(mappedRow,prepared.display);
     if(policy.owner!=='Connected wallet'){reason='Another wallet is an example only. Choose Connected wallet and rebuild to deploy.';review('refine','Review ownership');}
     else if(new Date(policy.expiration).getTime()<=Date.now()||!Number.isFinite(new Date(policy.expiration).getTime())){reason='Choose a future expiration and rebuild.';review('refine','Review expiration');}
+    else if(Math.ceil((new Date(policy.expiration).getTime()-Date.now())/2000)>7883970){reason='Choose Entity Expiration within 7,883,970 blocks; use authorized Lifetime Extension for longer retention.';review('refine','Review expiration');}
     else if(model.decisions.some(d=>!['privacy','attribute-limit','cross-entity-query','constraints'].includes(d.code))){reason='Resolve the model decisions before deploying: '+model.decisions.filter(d=>!['privacy','attribute-limit','cross-entity-query','constraints'].includes(d.code)).map(d=>d.message).join(' ');review('issues','Review model decisions');}
     else if(needsRuleReview(entity)&&!$<HTMLInputElement>('constraints-consent').checked){reason='Check this row against the retained PostgreSQL rules and confirm the rules checkbox above.';review('constraints-consent','Review SQL rules');}
     else if(!account){reason='Connect your wallet to create this entity.';review('connect-wallet','Go to wallet connection');}
     else if(!consent.checked)reason='Review the fields and values, then check the confirmation above to enable deployment.';
-    else {reason='One entity on Tiramisu · owner '+short(account)+'.';valid=true;}
+    else {reason='One entity on Rabdi · owner '+short(account)+'.';valid=true;}
    }catch(error){reason=model.blockers.length?model.blockers.map(b=>(b.field?b.field.column+': ':'')+b.message).join(' '):message(error);preview.textContent=reason;review(model.blockers.length?'issues':'entity-row',model.blockers.length?'Fix model issues':'Review source row');}
   } else preview.textContent='Rebuild to review current values.';
   if(submittedHash||busy)resolve.hidden=true;
   eligibility.textContent=busy?'Waiting for the wallet or transaction confirmation…':reason;
   eligibility.dataset.ready=String(valid&&!busy);deploy.disabled=!valid||busy;
  }
- function changed(){epoch++;account=undefined;connect.textContent='Connect wallet';consent.checked=false;clearPreviousFeedback();$('connection-status').textContent='Wallet account or network changed. Connect again to verify Tiramisu.';refresh();}
+ function changed(){epoch++;account=undefined;connect.textContent='Connect wallet';consent.checked=false;clearPreviousFeedback();$('connection-status').textContent='Wallet account or network changed. Connect again to verify Rabdi.';refresh();}
  async function ensureNetwork(p:Provider){
    const current=await p.request({method:'eth_chainId'});
-   if(BigInt(current)!==BigInt(tiramisu.id)){
+   if(BigInt(current)!==BigInt(rabdi.id)){
     try{await p.request({method:'wallet_switchEthereumChain',params:[{chainId:chainHex}]});}
-    catch(error){if((error as {code?:number}).code!==4902)throw error;await p.request({method:'wallet_addEthereumChain',params:[{chainId:chainHex,chainName:tiramisu.name,nativeCurrency:tiramisu.nativeCurrency,rpcUrls:[tiramisu.rpcUrls.default.http[0]],blockExplorerUrls:['https://tiramisu.explorer.arkiv.network']}]});}
+    catch(error){if((error as {code?:number}).code!==4902)throw error;throw Error('Add Rabdi (chain 7794095) in your wallet using your own access key from hub.arkiv.network/access-keys, then connect again.');}
    }
-   if(BigInt(await p.request({method:'eth_chainId'}))!==BigInt(tiramisu.id))throw Error('Select Tiramisu in your wallet.');
-   if(await rpc.getChainId()!==tiramisu.id)throw Error('RPC network mismatch.');
+   if(BigInt(await p.request({method:'eth_chainId'}))!==BigInt(rabdi.id))throw Error('Select Rabdi in your wallet.');
+   if(await rpc.getChainId()!==rabdi.id)throw Error('RPC network mismatch.');
  }
  connect.addEventListener('click',async()=>{
   if(busy)return;connect.disabled=true;
@@ -99,7 +103,7 @@ export function initDeployment(){
    await ensureNetwork(provider);
    const accounts=await provider.request({method:'eth_requestAccounts'});
    if(!accounts[0]||!isAddress(accounts[0]))throw Error('No wallet account selected.');
-   account=accounts[0];connect.textContent=short(account);status.textContent='Connected to Tiramisu. Your wallet will ask before sending a transaction.';
+   account=accounts[0];connect.textContent=short(account);status.textContent='Connected to Rabdi. Your wallet will ask before sending a transaction.';
   }catch(error){status.textContent=message(error);}finally{const feedback=$('connection-status');feedback.textContent=status.textContent;feedback.hidden=false;connect.disabled=false;refresh();}
  });
  row.addEventListener('input',()=>{consent.checked=false;$<HTMLInputElement>('constraints-consent').checked=false;epoch++;clearPreviousFeedback();refresh();});
@@ -111,19 +115,23 @@ export function initDeployment(){
     history.hidden=false;history.open=true;$('creation-history-label').textContent='Creation result';
     const output=$('deploy-result');const title=document.createElement('h3');title.textContent='Entity created';
     const key=document.createElement('p');key.textContent='Entity key: '+result.entityKey;
-    const links=document.createElement('div');links.className='actions';links.append(link('Block Explorer · transaction','https://tiramisu.explorer.arkiv.network/tx/'+result.txHash),link('Block Explorer · entity','https://tiramisu.explorer.arkiv.network/entity/'+result.entityKey),link('Data Explorer - entity','https://data.arkiv.network/?q='+encodeURIComponent('$key = key('+result.entityKey+')')));
-    const note=document.createElement('p');note.className='hint';note.textContent='The Data Explorer link opens the entity-key query. Select Tiramisu and press Execute. The read below also verifies it directly.';
-    const verification=document.createElement('p');verification.className='hint';verification.textContent='Reading the created entity from Tiramisu…';
+    const links=document.createElement('div');links.className='actions';links.append(link('Block Explorer · transaction','https://rabdi.explorer.arkiv.network/tx/'+result.txHash),link('Block Explorer · entity','https://rabdi.explorer.arkiv.network/entity/'+result.entityKey),link('Data Explorer - entity','https://data.arkiv.network/?q='+encodeURIComponent('$key = key('+result.entityKey+')')));
+    const note=document.createElement('p');note.className='hint';note.textContent='The Data Explorer link opens the entity-key query. Select Rabdi and press Execute. The read below also verifies it directly.';
+    const verification=document.createElement('p');verification.className='hint';verification.textContent='Reading the created entity from Rabdi…';
     output.replaceChildren(title,key,links,note,verification);
     status.textContent='Transaction confirmed. Checking the stored entity…';
     try{
+      const schema=toSdkSchema(selected);
       const actual=await rpc.getEntity(result.entityKey);
-      const expected=JSON.stringify(prepared.payload);
-      const canonical=(a:object)=>JSON.stringify(Object.entries(a).sort(([a],[b])=>a.localeCompare(b)),(_,v)=>typeof v==='bigint'?v.toString():v);
-      if(actual.key!==result.entityKey||actual.owner.toLowerCase()!==owner.toLowerCase()||actual.creator.toLowerCase()!==owner.toLowerCase()||actual.contentType!=='application/json'||canonical(actual.attributes)!==canonical(prepared.attributes)||new TextDecoder().decode(actual.payload)!==expected)throw Error('Returned entity content differs from the submitted example.');
-      if(actual.creationFlags.readonly!==submittedFlags.readonly||actual.creationFlags.permissionlessExtension!==submittedFlags.permissionlessExtension)throw Error('Returned creation flags differ from the submitted settings.');
-      verification.textContent='Verified from Tiramisu: entity key, owner, creator, attributes, payload and creation flags match.';
-      const data=document.createElement('pre');data.tabIndex=0;data.textContent=JSON.stringify({key:actual.key,owner:actual.owner,creator:actual.creator,createdAt:actual.createdAt.toString(),updatedAt:actual.updatedAt.toString(),expiresAt:actual.expiresAt.toString(),contentType:actual.contentType,creationFlags:actual.creationFlags,attributes:actual.attributes,payload:JSON.parse(new TextDecoder().decode(actual.payload))},(_,v)=>typeof v==='bigint'?v.toString():v,2);output.append(data);
+      const canonical=(value:unknown)=>JSON.stringify(value,(_,v)=>typeof v==='bigint'?v.toString():v);
+      if(actual.$key!==result.entityKey||actual.$owner.toLowerCase()!==owner.toLowerCase()||actual.$creator.toLowerCase()!==owner.toLowerCase())throw Error('Returned entity identity differs from the reviewed write.');
+      for(const column of selected.schema.columns){
+        if(canonical(actual.$attributes[column.name])!==canonical(prepared.values[column.name]))throw Error('Returned column differs from the submitted value: '+column.name);
+      }
+      if(actual.$attributes['arkiv.schema']?.value!==schema.name)throw Error('Returned schema namespace differs from the reviewed model.');
+      if(actual.$creationFlags.readonly!==submittedFlags.readonly||actual.$creationFlags.permissionlessExtension!==submittedFlags.permissionlessExtension)throw Error('Returned creation flags differ from the submitted settings.');
+      verification.textContent='Verified from Rabdi: key, owner, creator, typed columns and creation flags match.';
+      const data=document.createElement('pre');data.tabIndex=0;data.textContent=JSON.stringify(actual,(_,v)=>typeof v==='bigint'?v.toString():v,2);output.append(data);
       status.textContent='Entity created and read back successfully.';
     }catch(error){verification.textContent='Creation confirmed, but read verification is pending: '+message(error);status.textContent='Entity created. Use its transaction link to inspect the confirmed write.';}
   }
@@ -132,12 +140,12 @@ export function initDeployment(){
     await ensureNetwork(p);
     const accounts=await p.request({method:'eth_accounts'});
     if(accounts[0]?.toLowerCase()!==owner.toLowerCase()||version!==epoch||!fresh)throw Error('Your account or model changed. Review it before signing.');
-    if(await rpc.getBalance({address:owner})===0n)throw Error('Your wallet needs test GLM. Use the faucet link below, then try again.');
+    if(await rpc.getBalance({address:owner,blockTag:'latest'})===0n)throw Error('Your wallet needs test GLM. Use the faucet link below, then try again.');
     if(version!==epoch||!fresh)throw Error('Inputs changed. Review before signing.');
     const guarded = { request: async (args: {method:string;params?:readonly unknown[]}) => {
       if(args.method === 'eth_sendTransaction') {
         if(version!==epoch||!fresh||!consent.checked||new Date(expires).getTime()<=Date.now())throw Error('Inputs changed before signing. Review and try again.');
-        if(BigInt(await p.request({method:'eth_chainId'}))!==BigInt(tiramisu.id))throw Error('Wallet network changed before signing.');
+        if(BigInt(await p.request({method:'eth_chainId'}))!==BigInt(rabdi.id))throw Error('Wallet network changed before signing.');
         const selectedAccounts=await p.request({method:'eth_accounts'});
         if(selectedAccounts[0]?.toLowerCase()!==owner.toLowerCase())throw Error('Wallet account changed before signing.');
       }
@@ -145,9 +153,15 @@ export function initDeployment(){
       if(args.method==='eth_sendTransaction'&&typeof response==='string')submittedHash=response;
       return response;
     }} as Provider;
-    const wallet=createWalletClient({account:owner,chain:tiramisu,transport:custom(guarded)});
-    status.textContent='Confirm creation in your wallet. This sends the reviewed values to Tiramisu.';
-    const result=await wallet.createEntity({attributes:prepared.attributes,payload:jsonToPayload(prepared.payload),contentType:'application/json',expires:ExpirationTime.atDate(expires),flags:submittedFlags});
+    const wallet=createWalletClient({account:owner,chain:rabdi,transport:custom(guarded)});
+    status.textContent='Confirm creation in your wallet. This sends the reviewed values to Rabdi.';
+    const remaining=Math.ceil((expires.getTime()-Date.now())/2000);
+    if(remaining<1||remaining>7883970)throw Error('Entity Expiration is outside the supported lifetime. Review it again.');
+    const [nonce,gasPrice]=await Promise.all([rpc.getTransactionCount({address:owner,blockTag:'latest'}),fees.getGasPrice()]);
+    const result=await wallet.createEntity(toSdkSchema(selected),prepared.values,{expiration:ExpirationTime.atDate(expires),flags:submittedFlags},{nonce,gas:1000000n,gasPrice});
+    submittedHash=result.txHash;
+    const receipt=await rpc.getTransactionReceipt({hash:result.txHash});
+    if(receipt.status!=='success')throw Error(receipt.gasUsed===1000000n?'Transaction reverted at the gas limit; increase explicit gas after reviewing the receipt.':'Transaction reverted.');
     await showCreated(result);
     submittedHash=undefined;consent.checked=false;
   }catch(error){status.textContent=message(error);consent.checked=false;if(submittedHash){history.hidden=false;history.open=true;$('creation-history-label').textContent='Transaction awaiting confirmation';const output=$('deploy-result');const note=document.createElement('p');note.textContent='A transaction was submitted. Its outcome needs verification; do not send it again.';const hash=submittedHash as `0x${string}`;
@@ -156,7 +170,7 @@ export function initDeployment(){
        if(busy)return;busy=true;retry.disabled=true;refresh();
        try{
         const receipt=await rpc.getTransactionReceipt({hash});
-        if(receipt.status==='reverted'){submittedHash=undefined;status.textContent='Transaction reverted. No entity was created. Review before trying again.';note.textContent=status.textContent;output.replaceChildren(note,link('View reverted transaction','https://tiramisu.explorer.arkiv.network/tx/'+hash));}
+        if(receipt.status==='reverted'){submittedHash=undefined;status.textContent='Transaction reverted. No entity was created. Review before trying again.';note.textContent=status.textContent;output.replaceChildren(note,link('View reverted transaction','https://rabdi.explorer.arkiv.network/tx/'+hash));}
         else{
          let entityKey:`0x${string}`|undefined;
          for(const log of receipt.logs){if(log.address.toLowerCase()!=='0x4400000000000000000000000000000000000044')continue;try{const event=decodeEventLog({abi:ENTITY_EVENTS_ABI,topics:log.topics,data:log.data});if(event.eventName==='EntityCreated'&&event.args.owner.toLowerCase()===owner.toLowerCase())entityKey=event.args.entityKey;}catch{}}
@@ -166,7 +180,7 @@ export function initDeployment(){
        }catch(error){status.textContent='Confirmation still pending: '+message(error);}
        finally{busy=false;retry.disabled=false;consent.checked=false;refresh();}
       });
-      output.replaceChildren(note,link('Check transaction','https://tiramisu.explorer.arkiv.network/tx/'+hash),retry);}}finally{busy=false;lockInputs(false);connect.disabled=false;refresh();}
+      output.replaceChildren(note,link('Check transaction','https://rabdi.explorer.arkiv.network/tx/'+hash),retry);}}finally{busy=false;lockInputs(false);connect.disabled=false;refresh();}
  });
  return {
   setFlags(next:DemoFlags){flags={...next};epoch++;consent.checked=false;clearPreviousFeedback();refresh();},
@@ -176,7 +190,7 @@ export function initDeployment(){
    if(previousSource){try{const values=JSON.parse(row.value);if(values&&typeof values==='object'&&!Array.isArray(values))editedRows.set(previousSource,{...editedRows.get(previousSource),...values});else invalidRow=true;}catch{invalidRow=true;}}
    const keepRaw=invalidRow&&previousSource===e?.source;
    entity=e;model=m;policy=p?{...p}:undefined;fresh=true;epoch++;consent.checked=false;
-   const fields=e?[...e.payload.map(f=>[f.source.column,exampleValue(f.source.table,f.source.column,f.sourceType)] as const),...e.attributes.filter(a=>a.source).map(a=>[a.source!.column,exampleValue(a.source!.table,a.source!.column,a.sourceType??a.type,a.encoding)] as const)]:[];
+   const fields=e?sourceColumns(e).map(f=>[f.source.column,exampleValue(f.source.table,f.source.column,f.sourceType,f.encoding)] as const):[];
    const saved=e?editedRows.get(e.source):undefined;
    if(!keepRaw)row.value=JSON.stringify(Object.fromEntries(fields.map(([name,fallback])=>[name,saved&&Object.hasOwn(saved,name)?saved[name]:fallback])),null,2);
    if(e&&!keepRaw)editedRows.set(e.source,JSON.parse(row.value));

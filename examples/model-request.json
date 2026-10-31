@@ -10,6 +10,6 @@
   "privacyReviewed": true,
   "privateFields": [],
   "policies": [
-    { "table": "listings", "owner": "The seller's wallet", "expiration": "30 days; seller extends while listing is available" }
+    { "table": "listings", "owner": "The seller's wallet", "expiration": "30 days; seller authorizes Lifetime Extension while listing is available", "expirationBlocks": 1296000 }
   ]
 }

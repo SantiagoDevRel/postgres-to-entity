@@ -1,6 +1,6 @@
 {
   "name": "postgres-to-entity",
-  "version": "0.3.1",
+  "version": "1.0.0",
   "private": false,
   "license": "MIT",
   "repository": {
@@ -9,7 +9,7 @@
   },
   "homepage": "https://postgres-to-entity.vercel.app",
   "type": "module",
-  "description": "Convert PostgreSQL CREATE TABLE definitions into Arkiv entity models. Deterministic offline library and CLI.",
+  "description": "Generate offline PostgreSQL-to-Arkiv typed schema models for SDK 1.0.0 and Rabdi.",
   "exports": {
     ".": {
       "types": "./dist/postgres.d.ts",
@@ -26,23 +26,31 @@
     "dist/planner.d.ts",
     "dist/sql.js",
     "dist/sql.d.ts",
+    "dist/sdk-schema.js",
+    "dist/sdk-schema.d.ts",
     "bin",
     "examples",
     "AGENTS.md",
     "CLAUDE.md",
-    "README.md"
+    "README.md",
+    "CHANGELOG.md"
   ],
   "engines": {
-    "node": ">=22 <24"
+    "node": ">=22.12 <24"
   },
   "scripts": {
     "test": "node --test --experimental-strip-types src/**/*.test.ts",
     "typecheck": "tsc --noEmit",
+    "lint": "node scripts/lint.mjs",
     "build": "tsc -p tsconfig.build.json",
     "prepack": "npm run build",
     "model": "node bin/arkiv-packer.mjs"
   },
   "devDependencies": {
+    "@arkiv-network/sdk": "1.0.0",
     "typescript": "^5.9.3"
+  },
+  "peerDependencies": {
+    "@arkiv-network/sdk": "^1.0.0"
   }
 }

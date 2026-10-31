@@ -1,6 +1,6 @@
 import type { EntityDesign } from 'postgres-to-entity';
 
-type Attribute = EntityDesign['attributes'][number];
+type Attribute = EntityDesign['schema']['columns'][number];
 type FilterExample = { name: string; explanation: string; query: string };
 
 /** Examples describe the mapped Arkiv type, never infer capabilities from a SQL spelling. */
@@ -24,14 +24,13 @@ export function filterExamples(attribute: Attribute): FilterExample[] {
   }
   if (attribute.type === 'str') examples.push({ name: 'Starts with', explanation: `Match text beginning with ${prefix}. Case-sensitive; this is not a search anywhere inside the text.`, query: `startsWith(${field}, ${JSON.stringify(prefix)})` });
   if (attribute.type === 'bool') examples[0].explanation = 'Match false (for example, an unused ticket). Use true for the other value.';
-  examples.push({ name: 'Does not match · NOT', explanation: 'Invert a condition. This also includes entities where this attribute is missing; it is not SQL != or IS NOT NULL.', query: `not(${examples[0].query})` });
   return examples;
 }
 
 export function filterGuide(attribute: Attribute | undefined): HTMLElement {
   const details = document.createElement('details');details.className = 'field-filters';
   const summary = document.createElement('summary');summary.textContent = attribute ? `Available filters · ${attribute.type}` : 'Query mapping needs a decision';details.append(summary);
-  if (!attribute) return details;
+  if (!attribute || !attribute.indexed) return details;
   const list = document.createElement('ul');list.className = 'filter-examples';
   for (const example of filterExamples(attribute)) {
     const item = document.createElement('li');item.textContent = example.name;list.append(item);

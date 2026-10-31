@@ -6,9 +6,9 @@ test('PostgreSQL public entry rejects document schemas and ambiguous mixed input
  const model=generateModel(input);assert.equal(model.status,'blocked');assert.equal(model.blockers[0]?.code,'postgres-required');
  }
 });
-test('PostgreSQL public entry produces scalar attribute without payload duplication',()=>{
- const model=generateModel({sql:'CREATE TABLE tickets (id UUID PRIMARY KEY, used BOOLEAN);',project:'tickets',filters:[{table:'tickets',column:'used',operator:'eq'}],privacyReviewed:true,policies:[{table:'tickets',owner:'Connected wallet',expiration:'At selected date; owner may extend'}]});
- assert.equal(model.status,'modelled');assert.ok(model.entities[0]?.attributes.some(a=>a.source?.column==='used'));assert.ok(!model.entities[0]?.payload.some(p=>p.source.column==='used'));
+test('PostgreSQL public entry maps indexed columns without source duplication',()=>{
+ const model=generateModel({sql:'CREATE TABLE tickets (id UUID PRIMARY KEY, used BOOLEAN);',project:'tickets',filters:[{table:'tickets',column:'used',operator:'eq'}],privacyReviewed:true,policies:[{table:'tickets',owner:'Connected wallet',expiration:'At selected date; owner may extend',expirationBlocks:43200}]});
+ assert.equal(model.status,'modelled');assert.ok(model.entities[0]?.schema.columns.filter(a=>a.indexed).some(a=>a.source?.column==='used'));assert.ok(!model.entities[0]?.schema.columns.filter(p=>!p.indexed).some(p=>p.source.column==='used'));
 });
 test('optional undefined schema is harmless in a normalized request object',()=>{
  const result=generateModel({sql:'CREATE TABLE t (id INTEGER PRIMARY KEY);',schema:undefined});assert.notEqual(result.status,'blocked');

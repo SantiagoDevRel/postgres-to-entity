@@ -1,165 +1,134 @@
-﻿# POSTGRES-TO-ENTITY
+# postgres-to-entity
 
-Convert PostgreSQL `CREATE TABLE` definitions into an **Arkiv entity model**.
-The package name is `postgres-to-entity`. The deterministic library and CLI run offline:
-no database credentials, row import, wallet or chain writes. The optional browser sample
-adds an explicitly confirmed, single-entity Tiramisu demo using the official SDK.
+Convert PostgreSQL `CREATE TABLE` definitions into **Arkiv entities** for the Web3 database.
+Version 1.0.0 produces `arkiv-entity-model/3` for `@arkiv-network/sdk` 1.0.0 on Rabdi.
+The converter is deterministic and offline. It does not connect, sign, import rows or write.
 
 ## Install and run
 
-Install the versioned npm package archive from GitHub Releases. Registry publication
-is pending the maintainer's npm security-key authentication; the archive works with npm.
-Node 22.12–23:
+Node 22.12 through 23. Install the reviewed 1.0.0 archive before registry publication:
 
 ```sh
-npm install https://github.com/SantiagoDevRel/postgres-to-entity/releases/download/v0.3.1/postgres-to-entity-0.3.1.tgz
-npx postgres-to-entity schema.sql --format markdown --out entity-model.md
+npm install ./postgres-to-entity-1.0.0.tgz @arkiv-network/sdk@1.0.0 viem
+npx postgres-to-entity schema.sql --format markdown --out NEW_MODEL.md
 ```
 
-The SQL file contains definitions, for example:
-
-```sql
-CREATE TABLE tickets (
-  id UUID PRIMARY KEY,
-  event_name VARCHAR(24),
-  seat_number INTEGER,
-  used BOOLEAN
-);
-```
-
-The CLI also accepts a JSON **request envelope containing `sql` and decisions**; this is
-not a JSON Schema/MongoDB input adapter. See `examples/model-request.json`.
+Output creation is exclusive: the CLI refuses to overwrite an existing file.
+SQL files produce a draft. A JSON request envelope supplies SQL plus explicit decisions:
 
 ```js
-import { generateModel, modelMarkdown } from 'postgres-to-entity';
+import { generateModel, modelMarkdown, toSdkSchema } from 'postgres-to-entity';
+
 const model = generateModel({
-  sql: 'CREATE TABLE tickets (id UUID PRIMARY KEY, used BOOLEAN);',
-  project: 'event-tickets',
-  filters: [{ table: 'tickets', column: 'used', operator: 'eq' }],
-  privateFields: [],
+  sql: 'CREATE TABLE tasks (id UUID PRIMARY KEY, score INTEGER NOT NULL, title VARCHAR(24) NOT NULL, body BYTEA);',
+  project: 'my-app',
+  filters: [{ table: 'tasks', column: 'score', operator: 'range' }],
   privacyReviewed: true,
+  privateFields: [],
   policies: [{
-    table: 'tickets',
-    owner: 'The connected signing wallet',
-    expiration: 'Seven days; the owner may extend later'
+    table: 'tasks',
+    owner: 'Connected signing wallet',
+    expiration: 'One day; Lifetime Extension only with explicit owner authorization',
+    expirationBlocks: 43200
   }]
 });
-console.log(model.status);
-console.log(modelMarkdown(model));
+if (model.status !== 'modelled') throw new Error(modelMarkdown(model));
+const schema = toSdkSchema(model.entities[0]); // offline SDK schema construction
 ```
 
-Output format: `arkiv-entity-model/2`. Model-only is the package boundary, even when
-an application consumes it to create actual entities. Do not execute a blocked draft.
+This schema has `id: str()`, `score: i32().indexed()`, `title: str()`, and
+`body: bytes().optional()`. A named schema uses the explicit project and entity kind
+as its namespace; the SDK adds its own indexed `arkiv.schema` tag.
+`toSdkSchema` builds declarations only. The application remains responsible for
+checking model status, enforcing encodings, supplying rows and authorizing any write.
 
 | Result / CLI exit | Meaning |
 | --- | --- |
-| `modelled` / 0 | Structure mapped for the supplied inputs; not a guarantee of workload optimality. |
+| `modelled` / 0 | Supplied decisions are structurally complete. |
 | `needs-input` / 2 | Draft with explicit decisions still open. |
-| `blocked` / 3 | Invalid or unsupported source/projection. |
-| I/O / 1 | Command or file error. Output files must not already exist. |
+| `blocked` / 3 | Invalid or unsupported source or query projection. |
+| I/O / 1 | Command or file error. |
+
+A defined model does not prove workload optimality, runtime value validity or authorization.
+Never execute a blocked model. See `examples/model-request.json` for a complete request.
+
+## Mapping and reconstruction
+
+- Every retained source field has exactly one named typed column with source identity,
+  original PostgreSQL type, encoding, nullability and explicit `indexed` boolean.
+- Only selected scalar query fields are indexed. `filters: []` explicitly requests
+  reads by system fields without inferring any source-field index. Optional question
+  text is untrusted agent context; the converter does not interpret it.
+- `bytes` columns are always stored without an index. A requested binary filter is blocked.
+  Other unsupported query types require an explicit scalar projection decision.
+- Signed small integers map to `i32`; signed bigints and supported exact decimals use
+  `dec` with exact strings. Never round through JavaScript numbers. Unsupported precision
+  stays losslessly encoded in a stored bytes column and cannot silently become a filter.
+- UUIDs use 36-byte strings. A bounded PostgreSQL character declaration is safe for `str`
+  only when its worst-case UTF-8 width fits 128 bytes. Otherwise unqueried text uses
+  UTF-8 JSON bytes. Queried text can use explicit `attributeLimits: [{table,column,maxBytes}]`
+  within 1-128 bytes: reject longer values, never truncate or change their destination.
+  This input name is retained for request compatibility; output uses typed columns.
+- SQL NULL omits a nullable column. Reconstruct null only after selecting its complete
+  schema column set. Missing required values are invalid; zero, false, empty text and
+  empty binary values remain present. JSON fields use a `{value: ...}` envelope so
+  SQL NULL (`null`) and JSON null (`{value:null}`) remain distinct.
+- JSON/arrays and unsupported stored source types use explicit reversible UTF-8 JSON
+  encodings. Arrays use `{values,lowerBounds}` to preserve dimensions, source bounds,
+  order, duplicates and null elements. A null array and an empty array remain distinct.
+- Advanced `contains` filters create membership entities with indexed parent key and
+  scalar value, plus an unindexed `u64` ordinal. The parent keeps the complete array.
+  An application consistency decision is required. The beginner sample stores arrays.
+- Source PK/FK identities are preserved separately from `$key`, `$owner`, `$creator`
+  and `$expiresAt`. Resolve references explicitly; no automatic JOIN or SQL constraint enforcement.
+- Named schemas permit at most 31 declared columns, including stored columns. An explicit
+  split is required above that SDK limit. Schema names must fit 128 UTF-8 bytes.
+
+## Entity Expiration and Rabdi
+
+Every policy needs `owner`, descriptive `expiration`, and numeric `expirationBlocks`.
+Choose 1-7,883,970 blocks, below Rabdi's 7,884,000-block network maximum with a safety
+margin. At nominal two-second blocks this is about 182 days. Longer retention needs
+explicitly authorized **Lifetime Extension**, within the network limit each time.
+Descriptive policy text alone leaves a decision open. Wall-clock conversion is approximate.
+
+The optional [sample](./sample/README.md) creates one reviewed entity with an injected
+wallet. Public sample reads use its own server endpoint with `ARKIV_ACCESS_KEY` kept
+server-side. Wallet writes use the user's configured RPC. Get a free
+[access key](https://hub.arkiv.network/access-keys) and
+[test GLM](https://hub.arkiv.network/faucet). Never provide a private key to the sample.
+
+For application writes, use SDK 1.0's `createEntity(schema, values, options, txParams)`:
+explicit nonce from `eth_getTransactionCount(address, "latest")`, gas at least
+`1000000n`, and current `gasPrice`. Increase gas for larger entities, retaining at least
+2x measured headroom. Check `receipt.status === "success"` before claiming creation.
+A revert at the gas limit indicates under-estimation. At most one retry is allowed,
+only after an authoritative reverted receipt; never resend a successful or uncertain write.
+If Rabdi reports `arkiv serves state at the chain head only`, read state with `latest`
+or `pending`; historical block hashes, `safe` and `finalized` are unsupported for those reads.
+MissingAccessKeyError means a server/client access key must be configured, not embedded in a bundle.
 
 ## Supported PostgreSQL input
 
-The parser deliberately supports a subset of PostgreSQL DDL: `CREATE TABLE`, common
-inline/table primary and foreign keys, quoted identifiers, defaults, nullability and
-array declarations. `ALTER TABLE`, `CREATE TYPE`, views and full `pg_dump` imports are
-not supported. Unsupported statements block conversion rather than yielding a partial
-model presented as complete. MySQL, MongoDB, CSV and JSON schemas are not public inputs.
+Supported: a narrow `CREATE TABLE` subset with common inline/table primary and foreign
+keys, quoted identifiers, defaults, nullability and arrays. Unsupported statements
+(`ALTER TABLE`, views, `CREATE TYPE`, mixed dumps) block the entire conversion.
+Other SQL dialects, JSON Schema, document databases and row imports are not adapters.
+The public API requires `sql` and rejects `schema`, including mixed input.
+Source identifiers are untrusted data. Render them as text and do not persist user schemas or rows.
 
-The public API requires `sql`; `schema` is rejected, including when mixed with `sql`.
-The internal planner retains its earlier normalized representation for existing code,
-but it is not an advertised source format of this package.
-
-Supply explicit `filters` with `table`, `column`, and `operator`:
-
-- `eq`: exact-value comparisons, such as an event name or completed flag.
-- `range`: numeric comparisons, such as a minimum/maximum price.
-- `prefix`: strings starting with a prefix.
-- `contains`: advanced array-element projection; creates relationship entities and
-  an explicit consistency decision. It is not a native array attribute or a native
-  `contains` query operator. The beginner demo leaves arrays in payload.
-
-Operators express intended queries and drive validated encodings; they do not lock an
-attribute to one query operator. [Official query documentation](https://docs.arkiv.network/typescript-sdk/querying-data/).
-Omitting filters requests a decision; `filters: []` explicitly chooses built-in entity
-key lookup/owner filtering only. `question`, if provided by a program, is agent context
-only. No natural-language inference happens in the engine.
-
-Other request fields are `project`, `privateFields`, `privacyReviewed`, and `policies`
-(table, owner and expiration descriptions). Unknown properties are rejected at runtime.
-Names do not prove privacy. Keep private data out of both attributes and payload.
-
-## Storage contract
-
-Compatible scalar query fields live **only in attributes**. Other source fields live
-in payload, except explicit exclusions. Reconstruct source rows by merging both using
-the model's source mappings, source types and encodings. Preserve source primary keys
-and references; they are not Arkiv entity keys. There is no automatic SQL JOIN or
-constraint enforcement.
-
-Nullable attributes encode null by omission. Infer null only after retrieving the
-**complete** attribute set, never from partial projections. Missing non-nullable values
-are invalid. An update to null must explicitly unset its previous attribute. Preserve
-zero, false and empty strings. Decimal and bigint encodings use exact strings.
-
-Arrays retain their original payload representation, including order, shape, duplicates
-and nulls. Advanced membership projections put the element in a relationship attribute
-and only its zero-based row-major `ordinal` in relationship payload. The application must
-keep these projections consistent; the package returns that decision explicitly.
-
-The mutable SDK default allows payload and attribute updates. `readonly: true` freezes
-both, as a creation flag. Avoiding redundant scalar copies reduces stored bytes and
-write work; it does not imply a fixed transaction-price multiplier. No fee quote is
-produced. [Flags](https://docs.arkiv.network/typescript-sdk/api-reference/main/type-aliases/creationflags/)
-· [Architecture and pricing basis](https://docs.arkiv.network/start-here/fundamentals/).
-
-## Browser sample and wallet demo
-
-See [sample/README.md](sample/README.md). Four understandable PostgreSQL examples,
-explicit field destinations, a complete entity illustration, JSON payload and a collapsed
-copy/paste handoff. The sample consumes the npm archive, not sibling source files.
-
-A separate optional step encodes one reviewed JSON **row**, connects an injected EVM
-wallet and calls SDK 0.8 `createEntity` on Tiramisu. The user confirms the transaction.
-Only the connected wallet can deploy. Another wallet is model-only. A date/time picker
-sets an approximate calendar expiration via the SDK, ultimately stored as a block.
-
-The demo is not a bulk database migration or proof of PostgreSQL runtime constraints.
-Unsupported row encodings and unresolved model decisions block creation. The package
-itself remains independent of wallets and the Arkiv SDK.
-
-## Development
+## Verify and package
 
 ```sh
 npm ci
 npm test
 npm run typecheck
+npm run lint
 npm run build
 npm pack --pack-destination sample/vendor
-cd sample
-npm ci
-npm run build
-npm run dev
 ```
 
-`src/postgres.ts` is the public PostgreSQL-only entry; `src/planner.ts` is the internal
-mapping engine; `src/sql.ts` reads DDL. This repository contains the PostgreSQL converter
-and its sample. No skill installation is required.
-The MCP integration uses the same versioned package and remains model-only.
-
-# Text attributes (0.3.1)
-
-For a PostgreSQL text column, explicitly choose a maximum encoded size for the attribute:
-
-```js
-generateModel({
-  sql: 'CREATE TABLE tickets (id UUID PRIMARY KEY, buyer_email TEXT);',
-  filters: [{ table: 'tickets', column: 'buyer_email', operator: 'eq' }],
-  attributeLimits: [{ table: 'tickets', column: 'buyer_email', maxBytes: 128 }]
-});
-```
-
-`attributeLimits` supports scalar text/varchar/character varying fields, 1–128 UTF-8 bytes.
-It is an explicit application constraint, not a change to the PostgreSQL schema. Reject longer
-values before writing; never truncate, hash, or silently move the value to payload. A payload
-field has no attribute-specific byte limit. The sample validates these limits with the SDK.
+Consumer checks install the actual archive, including the sample and shared lane M
+minimum contract fixtures. Live integration and idempotent reseeding use
+`scripts/seed-rabdi.mjs` with the dedicated funded test wallet injected by the secrets runner.
+Read `AGENTS.md` before changing invariants. Breaking changes are in `CHANGELOG.md`.

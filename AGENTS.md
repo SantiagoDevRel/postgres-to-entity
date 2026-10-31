@@ -1,61 +1,65 @@
-﻿# AGENTS.md — POSTGRES-TO-ENTITY
+Edit instructions only in AGENTS.md; CLAUDE.md only imports this file.
 
-## Purpose and boundaries
+# AGENTS.md - postgres-to-entity 1.0
 
-`postgres-to-entity` converts PostgreSQL CREATE TABLE definitions into the portable
-Arkiv entity model `arkiv-entity-model/2`. Public entry: `src/postgres.ts`.
-This npm package is deterministic and offline. Never request database passwords, wallet
-keys or network access to generate a model. It does not import rows or perform writes.
+## Purpose
 
-The user expanded the **sample only** on 2026-09-10 to allow an optional wallet-confirmed
-single-entity creation on Tiramisu. This supersedes the older no-wallet sample boundary.
-The other ownership option is explicitly example-only and MUST disable deployment.
+Public entry: src/postgres.ts. Deterministic offline PostgreSQL CREATE TABLE converter.
+Output is arkiv-entity-model/3 with sdkVersion 1.0.0. toSdkSchema constructs SDK
+column declarations offline; generation never connects, signs, imports or writes.
+The optional sample separately supports one explicitly reviewed wallet write on Rabdi.
 
-## Commands
+## Inputs and invariants
 
-Node 22.12–23. `npm ci`, `npm test`, `npm run typecheck`, `npm run build`.
-`npm pack --pack-destination sample/vendor` produces the consumable archive.
-Consumers: `npm install ./postgres-to-entity-0.3.1.tgz` then
-`npx postgres-to-entity schema.sql --format markdown --out NEW_FILE.md`.
-CLI exit codes: 0 modelled, 2 needs-input, 3 blocked, 1 command/I/O error.
-Output uses exclusive creation; never overwrite a developer's edited model.
-The public npm archive is distributed through GitHub Releases. Registry publication
-requires the maintainer's npm security key; never claim registry availability without checking.
+Ask for SQL definitions, explicit query fields/operators (or filters: []), privacy
+review/exclusions, source identity/relationships, owner and bounded Entity Expiration.
+Optional question text is agent context only. Ask for actual framework/SDK before app code.
+Reject public schema inputs, other dialects, unsupported SQL and mixed formats.
 
-## Required developer inputs
+Every retained source field has one named schema column with original source type,
+encoding, nullability and explicit indexed boolean. Only selected filter columns are
+indexed. bytes is never indexed. Use named stored columns for other data; preserve
+PK/FK identity separately from $key, $owner, $creator and $expiresAt. No automatic
+JOIN, row import, privacy inference, SQL constraint enforcement or optimality claim.
 
-Ask for PostgreSQL CREATE TABLE definitions, query fields/operators, exclusions/privacy,
-source identity and relationship expectations, owner and Entity Expiration decisions.
-No natural-language query inference. Optional question text is agent context only.
-Ask for the actual framework/SDK version before producing implementing app code.
+Nullable columns omit SQL NULL. Reconstruct it only from a complete schema selection;
+missing required values are invalid. False, zero and empty values are present.
+Exact bigints/decimals remain strings. JSON uses {value:...} to distinguish SQL NULL
+from JSON null. Arrays use {values,lowerBounds}; preserve dimensions, order, duplicates,
+source bounds and null/empty distinctions. Advanced membership requires parent/value/
+ordinal columns and an explicit consistency decision; the sample stores arrays.
 
-For the sample, connecting an injected wallet is optional. Only request connection on
-an explicit click. Test GLM comes from https://hub.arkiv.network/faucet; funding and any
-CAPTCHA are human steps. Never request or embed private keys/access keys.
+attributeLimits is the compatible input name for explicit queried text limits of
+1-128 UTF-8 bytes. Preserve the source type, reject oversized data, never truncate
+or silently reroute. Named schemas allow 31 columns and 128-byte schema names.
+Blocked models are never executable; unresolved decisions remain in JSON/Markdown.
 
-## Hard invariants
+Policies preserve owner and descriptive expiration and require expirationBlocks
+within 1-7,883,970. The network maximum is 7,884,000 blocks. Longer retention requires
+authorized Lifetime Extension. Do not offer an unlimited lifetime option.
 
-- `attributeLimits: [{table,column,maxBytes}]` explicitly bounds queried scalar text fields
-  to 1–128 UTF-8 bytes. Preserve the PostgreSQL source type. Reject oversized values; never
-  truncate or silently reroute. The sample displays 128 bytes when choosing a text attribute.
+## Sample and security
 
-- Public input requires sql. Reject schema, other database dialects, mixed formats and
-  unsupported SQL statements. JSON request envelopes contain SQL plus decisions; they
-  are not JSON Schema or MongoDB adapters.
-- Every retained source field has an explicit destination. Compatible queried scalars
-  exist only in attributes, not duplicated in payload. Other fields stay in payload.
-- Preserve source PK/FK mappings; entity keys are separate. No automatic JOIN, constraints,
-  row import, privacy inference, universal SQL support or optimality claims.
-- Nullable attributes use omission; reconstruct null only from a complete attribute set.
-  Missing non-nullable values are invalid. Zero/false/empty text are not null.
-- Exact decimals/bigints use strings. Attribute byte limits are bytes, not characters.
-- Advanced array membership is a projection into additional entities, not a native array
-  attribute. Keep the complete parent array and only ordinal in relationship payload.
-  Require an app consistency decision; the beginner demo leaves arrays in payload.
-- Models with blockers are not executable; decisions remain visible in agent exports.
-- Sample values are illustrative and must not contaminate the model/agent export. The
-  separate row editor is the only source of optional transaction data and requires review.
-- Render source identifiers as text. Do not persist schemas, rows or credentials.
-- No new skill publication. The public API is the PostgreSQL model converter; do not add
-  cost-comparison semantics or alternate database adapters silently.
-- Tests must use the actual npm archive in consumers. Read sample/AGENTS.md before UI work.
+Read sample/AGENTS.md before sample changes. Only connect on click. Wallet writes use
+the user's configured Rabdi RPC; reads use the application's bounded server proxy.
+Access keys stay server-side as ARKIV_ACCESS_KEY. Free keys: https://hub.arkiv.network/access-keys;
+test GLM: https://hub.arkiv.network/faucet. Never request private keys or wallet secrets.
+Never persist or upload user schemas or rows. Render identifiers as text.
+Illustrations never enter model exports or transaction data; only the reviewed row editor does.
+
+Every write passes explicit nonce from latest, gas >= 1000000n and current gasPrice.
+Check receipt.status === success. A revert at the gas limit requires more gas.
+Never retry a successful/uncertain write. Rabdi head-only state errors require latest
+or pending for state reads. Keep exact SDK calls grounded in installed 1.0.0 source.
+
+## Verification and release
+
+Node 22.12-23. npm ci; npm test; npm run typecheck; npm run lint; npm run build.
+npm pack --pack-destination sample/vendor. Consumers must test the actual archive.
+CLI exits: 0 modelled, 2 needs-input, 3 blocked, 1 I/O error. Output creation is exclusive.
+Unit tests preserve parser/privacy/identity/null/byte-bound regressions and lane M fixtures.
+Live reseeding: scripts/seed-rabdi.mjs, TEST_P2E wallet only, secrets runner injection.
+A network reset may require reseeding; never delete another entity or resource.
+First delivery is branch/PR, packed archive and sample preview. Publication, merge and
+production promotion require a separate review approval. Do not claim registry availability
+until npm view confirms it. No new skill publication or alternate database adapters.
