@@ -61,3 +61,5 @@ receipt. A repeated seed performs zero writes. It never uses the funder.
 Root verification builds/packs first, then installs the archive here and runs build,
 row/query-guide/API tests. Browser checks use a separate Chrome window and simulated
 wallet boundaries; live seed evidence is reported separately from wallet simulation.
+
+Both `/api/rpc` and `/api/sample` reject foreign Origin hosts and cross-site Fetch Metadata before contacting Rabdi. POST requests require `Content-Type: application/json`; the GET public-example read accepts no body and needs no content type. JSON clients without Origin remain supported. These browser checks do not authenticate arbitrary HTTP clients. After installing sample dependencies, run `node --test sample/scripts/proxy-origin.test.mjs` from the repository root for the boundary tests.

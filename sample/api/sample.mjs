@@ -1,3 +1,4 @@
+import { rejectBrowserRequest } from '../shared/request-guard.mjs';
 import { createPublicClient } from '@arkiv-network/sdk';
 import { rabdi } from '@arkiv-network/sdk/chains';
 import { eq } from '@arkiv-network/sdk/query';
@@ -7,6 +8,7 @@ import { generatedDemo, demoId } from '../shared/demo.mjs';
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('X-Content-Type-Options', 'nosniff');
+  if (rejectBrowserRequest(req, res)) return;
   if (req.method !== 'GET') return res.status(405).json({ error: 'Use GET.' });
   if (!process.env.ARKIV_ACCESS_KEY || !/^0x[\da-f]{40}$/i.test(process.env.P2E_SAMPLE_OWNER ?? '')) {
     return res.status(503).json({ error: 'Rabdi sample reads need a server access key and sample owner.' });

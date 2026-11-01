@@ -1,3 +1,4 @@
+import { rejectBrowserRequest } from '../shared/request-guard.mjs';
 const address = value => typeof value === 'string' && /^0x[\da-f]{40}$/i.test(value);
 const hash = value => typeof value === 'string' && /^0x[\da-f]{64}$/i.test(value);
 const head = value => value === 'latest' || value === 'pending';
@@ -17,6 +18,7 @@ export function allowedRead(body) {
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('X-Content-Type-Options', 'nosniff');
+  if (rejectBrowserRequest(req, res)) return;
   if (req.method !== 'POST') return res.status(405).json({ error: 'Use POST for a supported read.' });
   const key = process.env.ARKIV_ACCESS_KEY;
   if (!key) return res.status(503).json({ error: 'Rabdi reads need a server-side ARKIV_ACCESS_KEY. Get an access key at https://hub.arkiv.network/access-keys.' });

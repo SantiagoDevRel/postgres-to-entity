@@ -22,7 +22,7 @@ test('read proxy rejects signing, arbitrary queries, batches and historical stat
 test('read proxy fails closed and never exposes upstream errors or access keys', async () => {
   const originalKey = process.env.ARKIV_ACCESS_KEY, originalFetch = globalThis.fetch;
   const response = () => ({ code: 0, body: undefined as unknown, headers: {} as Record<string, string>, setHeader(name: string, value: string) { this.headers[name] = value; }, status(code: number) { this.code = code; return this; }, json(value: unknown) { this.body = value; return this; } });
-  const req = { method: 'POST', headers: {}, body: { jsonrpc: '2.0', id: 1, method: 'eth_chainId', params: [] } };
+  const req = { method: 'POST', headers: { host: 'sample.example', 'content-type': 'application/json' }, body: { jsonrpc: '2.0', id: 1, method: 'eth_chainId', params: [] } };
   try {
     delete process.env.ARKIV_ACCESS_KEY;
     const missing = response(); await handler(req, missing); assert.equal(missing.code, 503);
