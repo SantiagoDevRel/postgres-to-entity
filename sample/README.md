@@ -63,3 +63,5 @@ row/query-guide/API tests. Browser checks use a separate Chrome window and simul
 wallet boundaries; live seed evidence is reported separately from wallet simulation.
 
 Both `/api/rpc` and `/api/sample` reject foreign Origin hosts and cross-site Fetch Metadata before contacting Rabdi. POST requests require `Content-Type: application/json`; the GET public-example read accepts no body and needs no content type. JSON clients without Origin remain supported. These browser checks do not authenticate arbitrary HTTP clients. After installing sample dependencies, run `node --test sample/scripts/proxy-origin.test.mjs` from the repository root for the boundary tests.
+
+Origin must be its exact canonical `scheme://host[:port]` serialization, with no credentials, path, query or fragment. The expected origin uses the request Host and HTTPS; only `localhost` and `127.0.0.1` development hosts use HTTP. Forwarded scheme/host headers cannot change this policy. Cross-site Fetch Metadata and POST JSON checks still apply.

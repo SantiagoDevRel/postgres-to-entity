@@ -4,6 +4,14 @@ import rpc from '../api/rpc.mjs';
 import sample from '../api/sample.mjs';
 const same = {host: 'sample.example', origin: 'https://sample.example', 'content-type': 'application/json'};
 const cases = [
+  ['strict Origin HTTP downgrade', {...same, origin: "http://sample.example"}, 403],
+  ['strict Origin FTP scheme', {...same, origin: "ftp://sample.example"}, 403],
+  ['strict Origin userinfo', {...same, origin: ['https://', 'user', ':', 'password', '@sample.example'].join('')}, 403],
+  ['strict Origin path', {...same, origin: "https://sample.example/path"}, 403],
+  ['strict Origin query', {...same, origin: "https://sample.example?x=1"}, 403],
+  ['strict Origin fragment', {...same, origin: "https://sample.example#part"}, 403],
+  ['strict Origin missing authority slashes', {...same, origin: "https:sample.example"}, 403],
+
   ['foreign JSON origin', {...same, origin: 'https://foreign.example'}, 403],
   ['foreign plain-text origin', {...same, origin: 'https://foreign.example', 'content-type': 'text/plain'}, 403],
   ['same-origin plain text', {...same, 'content-type': 'text/plain'}, 415],
@@ -33,6 +41,6 @@ async function invoke(endpoint, headers) {
 for(const endpoint of ['rpc','sample'])for(const[name,headers,expected]of cases.filter(c=>endpoint==='rpc'||c[2]===403))test(endpoint+' rejects '+name+' before spending a key',async()=>{
  const result=await invoke(endpoint,headers);console.log(JSON.stringify({originCase:endpoint+' '+name,expected,status:result.status,upstreamCalls:result.calls}));assert.equal(result.calls,0,'rejected request must not reach upstream');assert.equal(result.status,expected);
 });
-const controls=[['same-origin JSON',same],['JSON with charset',{...same,'content-type':'application/json; charset=utf-8'}],['origin absent',{host:same.host,'content-type':'application/json'}],['matching port',{...same,host:'sample.example:444',origin:'https://sample.example:444'}]];
+const controls=[['local HTTP localhost',{...same,host:'localhost:17811',origin:'http://localhost:17811'}],['local HTTP loopback',{...same,host:'127.0.0.1:17811',origin:'http://127.0.0.1:17811'}],['same-origin JSON',same],['JSON with charset',{...same,'content-type':'application/json; charset=utf-8'}],['origin absent',{host:same.host,'content-type':'application/json'}],['matching port',{...same,host:'sample.example:444',origin:'https://sample.example:444'}]];
 for(const endpoint of ['rpc','sample'])for(const[name,headers]of controls)test(endpoint+' allows '+name,async()=>{const result=await invoke(endpoint,headers);assert.equal(result.status,200);assert.equal(result.calls,1);});
 test('sample GET allows missing and odd content type',async()=>{for(const headers of [{host:same.host,origin:same.origin},{...same,'content-type':'application/jsonp'}]){const result=await invoke('sample',headers);assert.equal(result.status,200);assert.equal(result.calls,1);}});
