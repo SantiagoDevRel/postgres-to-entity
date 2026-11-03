@@ -33,14 +33,16 @@ export type EntityDesign = {
   applicationConstraints: string[];
 };
 export type EntityModel = {
-  format: "arkiv-entity-model/3"; sdkVersion: "1.0.0";
+  format: "arkiv-entity-model/3";
+  /** Format /3's minimum compatible SDK baseline, not the installed or latest SDK. Current guidance: SDK ^1.0.0, verified with 1.0.1. */
+  sdkVersion: "1.0.0";
   status: "blocked" | "needs-input" | "modelled"; scope: "model-only";
   question: string | null; project: string; entities: EntityDesign[];
   excluded: FieldRef[]; filters: Filter[]; blockers: DesignIssue[];
   decisions: DesignIssue[]; guarantees: string[];
   systemFields: readonly ["$key", "$owner", "$creator", "$expiresAt"];
 };
-/** Safety margin below Rabdi's 7,884,000-block protocol maximum. */
+/** Format /3's own lifetime policy, kept for compatibility; not a Rabdi requirement. Distinct from the SDK/chain maximum of 7,884,000 blocks. */
 export const MAX_LIFETIME_BLOCKS = 7_883_970;
 
 const RESERVED_NAMES = new Set("and or not true false between startswith exists typeof order by asc desc bool i32 u64 u256 dec bytes32 bytes str addr key arkiv.schema".split(" "));
@@ -306,7 +308,14 @@ export function generateModel(value: unknown): EntityModel {
   return result;
 }
 
-/** JSON is the authoritative interchange. Source descriptions are rendered as data. */
+/**
+ * JSON is the authoritative interchange. Source descriptions are rendered as data.
+ * The frozen format /3 Markdown labels sdkVersion as SDK; it means the format's
+ * minimum compatible SDK baseline, not the installed or latest SDK.
+ * Current guidance: SDK ^1.0.0, verified with 1.0.1. Format /3's lifetime policy
+ * remains 7,883,970 blocks for compatibility, distinct from the SDK/chain maximum
+ * of 7,884,000 blocks and not a Rabdi requirement.
+ */
 export function modelMarkdown(model: EntityModel): string {
   const safe = (s: string) => s.replace(/[\r\n<>]/g, " ").replace(/\u0060/g, "'");
   return [

@@ -8,7 +8,9 @@ Only explicit field choices drive indexing. Store other source values in named c
 arrays remain stored here. bytes columns cannot be indexed. Keep explicit UTF-8 bounds.
 
 Owner options: Connected wallet permits deployment; Another wallet is example-only.
-Require bounded future datetime-local expiration (max 7,883,970 nominal blocks).
+Require bounded future datetime-local expiration within format /3's own lifetime
+policy (max 7,883,970 nominal blocks), kept for compatibility. This is not a Rabdi
+requirement and differs from the SDK/chain maximum of 7,884,000 blocks.
 Only connect on click. Use the user's wallet-configured RPC; never request a private key.
 Server access keys belong only in ARKIV_ACCESS_KEY, not the client or NEXT_PUBLIC variables.
 

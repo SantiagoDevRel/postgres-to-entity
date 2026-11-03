@@ -38,7 +38,7 @@ including relationship schemas. Project names cannot use the reserved /// prefix
 Blocked models are never executable; unresolved decisions remain in JSON/Markdown.
 
 Policies preserve owner and descriptive expiration and require expirationBlocks
-within 1-7,883,970. This conservative cap preserves SDK 1.0.0 compatibility in format /3. With SDK 1.0.1+, ExpirationTime.max() selects the protocol maximum from inclusion; do not change the format contract here. The network maximum is 7,884,000 blocks. Longer retention requires
+within 1-7,883,970 under format /3's own lifetime policy, kept for compatibility. This is not a Rabdi requirement and is distinct from the SDK/chain maximum of 7,884,000 blocks. With SDK 1.0.1+, ExpirationTime.max() selects the protocol maximum from inclusion; do not change the format contract here. Longer retention requires
 authorized Lifetime Extension. Do not offer an unlimited lifetime option.
 
 ## Sample and security

@@ -2,24 +2,9 @@
   "history": [],
   "lines": [
     {
-      "file": "AGENTS.md",
-      "literal": "within 1-7,883,970. This conservative cap preserves SDK 1.0.0 compatibility in format /3. With SDK 1.0.1+, ExpirationTime.max() selects the protocol maximum from inclusion; do not change the format contract here. The network maximum is 7,884,000 blocks. Longer retention requires",
-      "reason": "Explicitly scoped SDK compatibility behavior or labelled historical measurement; not a current exact pin."
-    },
-    {
       "file": "CHANGELOG.md",
       "literal": "Breaking: output is now arkiv-entity-model/3 for SDK 1.0.0 and Rabdi.",
       "reason": "Historical version entry; retained verbatim."
-    },
-    {
-      "file": "README.md",
-      "literal": "The `arkiv-entity-model/3` field `sdkVersion: \"1.0.0\"` is the format's minimum SDK compatibility baseline, not an exact installation pin or the version used for verification. It remains unchanged for Arkiv MCP `generate_entity_model` consumers and shared fixtures. `toSdkSchema` constructs column declarations only; generated models contain no gas defaults or transaction code. Applications must supply explicit gas, gasPrice and a latest nonce and check the receipt. Format /3 retains its conservative lifetime cap for SDK 1.0.0 compatibility. With SDK 1.0.1+, `ExpirationTime.max()` gives the protocol maximum counted from inclusion; adopting that in the model requires a separately reviewed contract change.",
-      "reason": "Explicitly scoped SDK compatibility behavior or labelled historical measurement; not a current exact pin."
-    },
-    {
-      "file": "README.md",
-      "literal": "Choose 1-7,883,970 blocks, below Rabdi's 7,884,000-block network maximum as the format /3 SDK 1.0.0 compatibility",
-      "reason": "Explicitly scoped SDK compatibility behavior or labelled historical measurement; not a current exact pin."
     }
   ]
 }

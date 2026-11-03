@@ -20,7 +20,7 @@ check('typecheck', 'npm', ['run', 'typecheck']);
 check('lint', 'npm', ['run', 'lint']);
 check('build', 'npm', ['run', 'build']);
 check('sample-typecheck', process.execPath, ['node_modules/typescript/bin/tsc', '--noEmit'], join(root, 'sample'));
-check('sample-tests', process.execPath, ['--experimental-strip-types', '--test', 'scripts/row.test.ts', 'scripts/query-guide.test.ts', 'scripts/write-policy.test.ts', 'scripts/write-operation.test.ts'], join(root, 'sample'));
+check('sample-tests', process.execPath, ['--experimental-strip-types', '--test', 'scripts/row.test.ts', 'scripts/query-guide.test.ts', 'scripts/write-policy.test.ts', 'scripts/write-operation.test.ts', 'scripts/model-handoff.test.ts'], join(root, 'sample'));
 const consumer = mkdtempSync(join(tmpdir(), 'p2e-node22-'));
 writeFileSync(join(consumer, 'package.json'), JSON.stringify({ private: true, type: 'module' }));
 check('consumer-install', 'npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', registry ? `postgres-to-entity@${version}` : join(process.env.TMPDIR,'p2e-release-pack',`postgres-to-entity-${version}.tgz`)], consumer);

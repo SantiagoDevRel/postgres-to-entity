@@ -73,7 +73,7 @@ export function entityPreview(entity: EntityDesign, _model: EntityModel, flags: 
   frame.append(content);
   const system=node('details',undefined,'system-fields');system.append(node('summary','System fields and Entity Expiration'));
   system.append(node('p','$key, $owner, $creator and $expiresAt are system fields. Source primary keys stay in their own columns.','hint'));
-  system.append(node('p','Owner: '+(entity.owner??'Decision needed')+'. Entity Expiration: '+(entity.expiration??'Decision needed')+'. Maximum 7,883,970 blocks; longer retention needs authorized Lifetime Extension.','hint'));frame.append(system);
+  system.append(node('p','Owner: '+(entity.owner??'Decision needed')+'. Entity Expiration: '+(entity.expiration??'Decision needed')+'. Format /3 lifetime policy: maximum 7,883,970 blocks, kept for compatibility. This is not a Rabdi requirement; the SDK/chain maximum is 7,884,000 blocks. Longer retention needs authorized Lifetime Extension.','hint'));frame.append(system);
   const settings=node('div',undefined,'flag-controls');
   for(const [name,label] of [['readonly','Lock the content'],['permissionlessExtension','Let anyone extend expiration']] as const){
     const wrap=node('div'),labelNode=node('label',label),select=node('select');select.id='flag-'+name;select.dataset.creationFlag=name;labelNode.htmlFor=select.id;

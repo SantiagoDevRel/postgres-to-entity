@@ -15,14 +15,20 @@ in this folder describe earlier releases, not this migration's acceptance eviden
 1. Choose an example or paste PostgreSQL CREATE TABLE definitions.
 2. Choose stored, indexed or excluded source fields. No query inference. Arrays stay
    in stored bytes columns. Queried text has an explicit 128 UTF-8 byte bound.
-3. Choose ownership and a future local date within 7,883,970 nominal two-second blocks
-   (about 182 days). Longer retention requires authorized Lifetime Extension.
+3. Choose ownership and a future local date within format /3's own lifetime policy:
+   7,883,970 nominal two-second blocks (about 182 days), kept for compatibility.
+   This is not a Rabdi requirement and is distinct from the SDK/chain maximum of
+   7,884,000 blocks. Longer retention requires authorized Lifetime Extension.
 4. Inspect typed columns and source mappings. Copy/download the model and decisions.
 5. Optionally connect a wallet, review/edit one source row, and explicitly confirm
    public values and SQL-rule review. Another wallet is example-only and cannot deploy.
    JSON fields use {value:...}; SQL NULL is null. Arrays use {values,lowerBounds}.
 
 Schemas/rows remain in browser memory and are not persisted or uploaded for conversion.
+The copied prompt and downloaded Markdown explain that `sdkVersion` is format /3's
+minimum compatible SDK baseline, not the installed or latest SDK. Current guidance
+is SDK `^1.0.0`, verified with 1.0.1. The underlying format /3 JSON and library Markdown
+remain frozen compatibility outputs.
 Illustrative values are separate from exports. The row editor is the only source of
 transaction values. Changing data/account/network invalidates consent.
 
