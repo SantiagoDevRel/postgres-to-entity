@@ -20,7 +20,7 @@ function sdkFailure(error: unknown): { hash?: Hash; confirmedRevert: boolean; st
     const item = cause as { txHash?: unknown; name?: string; message?: string; cause?: unknown };
     if (typeof item.txHash === 'string' && /^0x[\da-f]{64}$/i.test(item.txHash)) hash = item.txHash as Hash;
     // SDK 1.0 sendArkivTransaction reports an authoritative revert using this type/message.
-    if (item.name === 'EntityMutationError' && /^Transaction 0x[\da-f]{64} reverted\./i.test(item.message ?? '')) confirmedRevert = true;
+    if (item.name === 'EntityMutationError' && /^Transaction 0x[\da-f]{64} (?:reverted\.|ran out of gas:)/i.test(item.message ?? '')) confirmedRevert = true;
     if (item.name === 'WritePolicyError') stoppedBeforeSend = true;
     cause = item.cause;
   }

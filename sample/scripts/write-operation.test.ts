@@ -11,11 +11,11 @@ test('COMMON 1: non-gas confirmed revert permits one send despite three new clic
   for (let i = 0; i < 3; i++) await executeWrite(operation, io);
   assert.equal(sends, 1); assert.equal(operation.attempts, 1); assert.equal(operation.phase, 'terminal');
 });
-test('COMMON 2: gas-exhausted confirmed revert retries exactly once at twice previous gas', async () => {
+for (const sdk101 of [false, true]) test('COMMON 2: gas-exhausted confirmed revert retries exactly once at twice previous gas (' + (sdk101 ? 'new diagnostic' : 'revert diagnostic') + ')', async () => {
   const operation = newWriteOperation(); let sends = 0;
   const io: WriteIO = { async send(minimum, attempted) {
     sends++; assert.equal(operation.phase, 'sending');
-    if (sends === 1) { assert.equal(minimum, 0n); attempted(1000000n); throw reverted(); }
+    if (sends === 1) { assert.equal(minimum, 0n); attempted(1000000n); throw sdk101 ? Object.assign(new Error(`Transaction ${hash} ran out of gas: it used all the gas it was given.`), { name: 'EntityMutationError', txHash: hash }) : reverted(); }
     assert.equal(minimum, 2000000n); attempted(minimum); return { txHash: hash, entityKey };
   }, async receipt() { return sends === 1 ? { status: 'reverted', gasUsed: 1000000n } : { status: 'success', gasUsed: 1200000n }; } };
   await executeWrite(operation, io); await executeWrite(operation, io);

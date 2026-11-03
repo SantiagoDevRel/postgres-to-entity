@@ -43,8 +43,8 @@ if (built && (registry || run('pack', ['pack', '--pack-destination', archiveDir]
   const consumer = join(process.env.TMPDIR, 'p2e-consumer');
   mkdirSync(consumer);
   writeFileSync(join(consumer, 'package.json'), JSON.stringify({ private: true, type: 'module' }));
-  if (run('consumer-install', ['install', '--ignore-scripts', '--no-audit', '--no-fund', archive], consumer)) {
-    assert.ok(readFileSync(join(consumer, 'node_modules/postgres-to-entity/README.md'), 'utf8').includes(`npm install postgres-to-entity@${version} @arkiv-network/sdk@1.0.0 viem`), 'Packed README must install the registry release');
+  if (run('consumer-install', ['install', '--ignore-scripts', '--no-audit', '--no-fund', archive, '@arkiv-network/sdk@1.0.1'], consumer)) {
+    assert.ok(readFileSync(join(consumer, 'node_modules/postgres-to-entity/README.md'), 'utf8').includes(`npm install postgres-to-entity@${version} @arkiv-network/sdk@1.0.1 viem`), 'Packed README must install the registry release');
     const packed = await import(pathToFileURL(join(consumer, 'node_modules/postgres-to-entity/dist/postgres.js')));
     const source = await import(pathToFileURL(join(root, 'dist/postgres.js')));
     const fixtures = JSON.parse(readFileSync('src/model-fixtures.json', 'utf8'));

@@ -4,8 +4,24 @@
   "buildCommand": "npm run build",
   "installCommand": "npm ci --no-audit --no-fund",
   "outputDirectory": "dist",
-  "headers": [{"source": "/(.*)", "headers": [
-    {"key": "X-Content-Type-Options", "value": "nosniff"},
-    {"key": "Referrer-Policy", "value": "strict-origin-when-cross-origin"}
-  ]}]
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        }
+      ]
+    }
+  ],
+  "git": {
+    "deploymentEnabled": {
+      "rabdi/sdk-101-20261103": false
+    }
+  }
 }

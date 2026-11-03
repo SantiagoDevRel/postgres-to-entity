@@ -9,7 +9,7 @@
     "preview": "vite preview --host 127.0.0.1 --port 3083 --strictPort"
   },
   "dependencies": {
-    "@arkiv-network/sdk": "1.0.0",
+    "@arkiv-network/sdk": "1.0.1",
     "postgres-to-entity": "1.0.1",
     "viem": "2.56.3"
   },
