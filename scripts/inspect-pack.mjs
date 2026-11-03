@@ -1,0 +1,32 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { checkTree as sdkTree } from './sdk-guidance-guard.mjs';
+import { checkTree as vocabularyTree } from './vocabulary-guard.mjs';
+import { withIsolatedCheckout, createOutputDirectory } from './isolated-checkout.mjs';
+
+const args = process.argv.slice(2);
+assert(args.length === 0 || (args.length === 2 && args[0] === '--out'), 'Usage: node scripts/inspect-pack.mjs [--out NEW_EXTERNAL_DIRECTORY]');
+withIsolatedCheckout(({ root, temporary, original }) => {
+  const output = createOutputDirectory(original, args[1], path.join(temporary, 'output'));
+  const scratch = path.join(temporary, 'unpacked');
+  fs.mkdirSync(scratch);
+  const pack = ['pack', '.', '--ignore-scripts', '--json'];
+  const execute = extra => JSON.parse(execFileSync('npm', [...pack, ...extra], { cwd: root, encoding: 'utf8' }))[0];
+  const dry = execute(['--dry-run']);
+  const actual = execute(['--pack-destination', output]);
+  assert.deepEqual(dry.files, actual.files);
+  assert(dry.files.some(file => file.path === 'README.md'));
+  assert(dry.files.some(file => file.path === 'AGENTS.md'));
+  assert(!dry.files.some(file => /(?:^|\/)(?:\.env(?!\.example)|node_modules|\.git)(?:\/|$)|\.(?:pem|key)$/.test(file.path)));
+  execFileSync('tar', ['-xzf', path.join(output, actual.filename), '-C', scratch]);
+  const unpacked = path.join(scratch, 'package');
+  const manifest = JSON.parse(fs.readFileSync(path.join(unpacked, 'package.json')));
+  assert.equal(manifest.peerDependencies['@arkiv-network/sdk'], '^1.0.0');
+  assert.deepEqual(sdkTree(unpacked), [], 'packed SDK guidance');
+  assert.deepEqual(vocabularyTree(unpacked), [], 'packed vocabulary, including every source-map string');
+  const evidence = [{ name: dry.name, version: dry.version, integrity: actual.integrity, shasum: actual.shasum, files: dry.files.map(file => file.path) }];
+  fs.writeFileSync(path.join(output, 'pack-dry-run.json'), JSON.stringify(evidence, null, 2) + '\n', { flag: 'wx' });
+  console.log(JSON.stringify({ status: 'PASS', packages: evidence.map(pkg => ({ name: pkg.name, version: pkg.version, files: pkg.files.length })), tarballGuards: true, output }));
+}, { prefix: 'p2e-inspect-pack-', retain: args.length === 0 });

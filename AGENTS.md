@@ -1,13 +1,13 @@
 Edit instructions only in AGENTS.md; CLAUDE.md only imports this file.
 
-# AGENTS.md - postgres-to-entity 1.0.1
+# AGENTS.md - postgres-to-entity 1.0.2
 
-Install `npm install --save-exact postgres-to-entity@1.0.1 @arkiv-network/sdk@1.0.0 viem`.
+Install `npm install --save-exact postgres-to-entity@1.0.2 @arkiv-network/sdk@1.0.1 viem`.
 
 ## Purpose
 
 Public entry: src/postgres.ts. Deterministic offline PostgreSQL CREATE TABLE converter.
-Output is arkiv-entity-model/3 with sdkVersion 1.0.0. toSdkSchema constructs SDK
+Output is arkiv-entity-model/3 with the fixed minimum SDK baseline sdkVersion 1.0.0. toSdkSchema constructs SDK
 column declarations offline; generation never connects, signs, imports or writes.
 The optional sample separately supports one explicitly reviewed wallet write on Rabdi.
 
@@ -38,7 +38,7 @@ including relationship schemas. Project names cannot use the reserved /// prefix
 Blocked models are never executable; unresolved decisions remain in JSON/Markdown.
 
 Policies preserve owner and descriptive expiration and require expirationBlocks
-within 1-7,883,970. The network maximum is 7,884,000 blocks. Longer retention requires
+within 1-7,883,970 under format /3's own lifetime policy, kept for compatibility. This is not a Rabdi requirement and is distinct from the SDK/chain maximum of 7,884,000 blocks. With SDK 1.0.1+, ExpirationTime.max() selects the protocol maximum from inclusion; do not change the format contract here. Longer retention requires
 authorized Lifetime Extension. Do not offer an unlimited lifetime option.
 
 ## Sample and security
@@ -55,7 +55,7 @@ fresh nonce from latest, current gasPrice and gas=max(1000000n,2*estimate), neve
 50% of the latest block gas limit. Split or refuse oversized writes before signing.
 Check receipt.status === success. A revert at the gas limit requires more gas.
 Never retry a successful/uncertain write. Rabdi head-only state errors require latest
-or pending for state reads. Keep exact SDK calls grounded in installed 1.0.0 source.
+or pending for state reads. Keep exact SDK calls grounded in installed 1.0.1 source.
 The sample keeps one operation record by signer/source identity across renders/clicks.
 SDK success sets submitted(hash) before lookup and permanently closes resends.
 Only an SDK-confirmed revert plus matching gasUsed == sent gas permits one retry,

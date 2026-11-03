@@ -1,0 +1,10 @@
+{
+  "history": [],
+  "lines": [
+    {
+      "file": "CHANGELOG.md",
+      "literal": "Breaking: output is now arkiv-entity-model/3 for SDK 1.0.0 and Rabdi.",
+      "reason": "Historical version entry; retained verbatim."
+    }
+  ]
+}

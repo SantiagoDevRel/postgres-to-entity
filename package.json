@@ -1,6 +1,6 @@
 {
   "name": "postgres-to-entity",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": false,
   "license": "MIT",
   "repository": {
@@ -9,7 +9,7 @@
   },
   "homepage": "https://postgres-to-entity.vercel.app",
   "type": "module",
-  "description": "Generate offline PostgreSQL-to-Arkiv typed schema models for SDK 1.0.0 and Rabdi.",
+  "description": "Generate offline PostgreSQL-to-Arkiv typed schema models for SDK ^1.0.0, verified with 1.0.1, and Rabdi.",
   "exports": {
     ".": {
       "types": "./dist/postgres.d.ts",
@@ -41,13 +41,14 @@
   "scripts": {
     "test": "node --test --experimental-strip-types src/**/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "lint": "node scripts/lint.mjs",
+    "lint": "node scripts/lint.mjs && node scripts/sdk-guidance-guard.mjs",
     "build": "tsc -p tsconfig.build.json",
     "prepack": "npm run build",
-    "model": "node bin/arkiv-packer.mjs"
+    "model": "node bin/arkiv-packer.mjs",
+    "guard:sdk": "node scripts/sdk-guidance-guard.mjs"
   },
   "devDependencies": {
-    "@arkiv-network/sdk": "1.0.0",
+    "@arkiv-network/sdk": "1.0.1",
     "typescript": "^5.9.3"
   },
   "peerDependencies": {

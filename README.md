@@ -1,15 +1,17 @@
 # postgres-to-entity
 
 Convert PostgreSQL `CREATE TABLE` definitions into **Arkiv entities** for the Web3 database.
-Version 1.0.1 produces `arkiv-entity-model/3` for `@arkiv-network/sdk` 1.0.0 on Rabdi.
+Version 1.0.2 produces `arkiv-entity-model/3` for SDK `^1.0.0`, verified with 1.0.1, on Rabdi.
 The converter is deterministic and offline. It does not connect, sign, import rows or write.
+
+The `arkiv-entity-model/3` field `sdkVersion: "1.0.0"` is the format's minimum compatible SDK baseline, not the installed or latest SDK. Current guidance is SDK `^1.0.0`, verified with 1.0.1. The field remains unchanged for Arkiv MCP `generate_entity_model` consumers and shared fixtures. `toSdkSchema` constructs column declarations only; generated models contain no gas defaults or transaction code. Applications must supply explicit gas, gasPrice and a latest nonce and check the receipt. Format /3's own lifetime policy is 7,883,970 blocks, kept for compatibility, distinct from the SDK/chain maximum of 7,884,000 blocks and not a Rabdi requirement. With SDK 1.0.1+, `ExpirationTime.max()` gives the protocol maximum counted from inclusion; adopting that in the model requires a separately reviewed contract change.
 
 ## Install and run
 
-Node 22.12 through 23. Install version 1.0.1 from npm:
+Node 22.12 through 23. Install version 1.0.2 from npm:
 
 ```sh
-npm install postgres-to-entity@1.0.1 @arkiv-network/sdk@1.0.0 viem
+npm install postgres-to-entity@1.0.2 @arkiv-network/sdk@1.0.1 viem
 npx postgres-to-entity schema.sql --format markdown --out NEW_MODEL.md
 ```
 
@@ -87,8 +89,9 @@ Never execute a blocked model. See `examples/model-request.json` for a complete 
 ## Entity Expiration and Rabdi
 
 Every policy needs `owner`, descriptive `expiration`, and numeric `expirationBlocks`.
-Choose 1-7,883,970 blocks, below Rabdi's 7,884,000-block network maximum with a safety
-margin. At nominal two-second blocks this is about 182 days. Longer retention needs
+Choose 1-7,883,970 blocks under format /3's own lifetime policy, kept for compatibility.
+This is not a Rabdi requirement and is distinct from the SDK/chain maximum of
+7,884,000 blocks. At nominal two-second blocks this is about 182 days. Longer retention needs
 explicitly authorized **Lifetime Extension**, within the network limit each time.
 Descriptive policy text alone leaves a decision open. Wall-clock conversion is approximate.
 

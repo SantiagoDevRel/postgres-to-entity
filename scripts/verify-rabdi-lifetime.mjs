@@ -24,12 +24,13 @@ async function main() {
   } catch (error) { failure = error; }
   assert.equal(state.sendStarted, false, 'Failed estimation must prevent signing');
   assert.equal(state.txHash, null);
-  let estimationError = false;
+  let estimationError = false, preflightError = false;
   for (let cause = failure, depth = 0; cause && depth < 12; cause = cause.cause, depth++) {
     if (String(cause.message ?? '').includes('gas estimation failed at latest')) estimationError = true;
+    if (cause.name === 'InvalidExpiryError') preflightError = true;
   }
-  assert.ok(estimationError, 'Over-limit expiration must fail unsigned estimation');
-  console.log(JSON.stringify({ network: 'Rabdi', chainId: 7794095, unsignedEstimationRejected: true, writes: 0,
+  assert.ok(preflightError || estimationError, 'Over-limit expiration must fail before signing: SDK preflight or unsigned estimation');
+  console.log(JSON.stringify({ network: 'Rabdi', chainId: 7794095, unsignedEstimationRejected: estimationError, sdkPreflightRejected: preflightError, writes: 0,
     maximumLifetimeBlocks: 7884000, automaticRetry: false, queriesKeyA: 0, queriesKeyB: 0 }, null, 2));
 }
 main().catch(() => { console.error('Lifetime boundary verification failed. No automatic retry. Inspect the lane receipt before continuing.'); process.exitCode = 1; });
