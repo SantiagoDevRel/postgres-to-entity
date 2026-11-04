@@ -97,8 +97,9 @@ Descriptive policy text alone leaves a decision open. Wall-clock conversion is a
 
 The optional [sample](./sample/README.md) creates one reviewed entity with an injected
 wallet. Public sample reads use its own server endpoint with `ARKIV_ACCESS_KEY` kept
-server-side. Wallet writes use the user's configured RPC. Get a free
-[access key](https://hub.arkiv.network/access-keys) and
+server-side. Wallet writes go through the user's wallet; if it does not know Rabdi, the
+sample adds the keyless public RPC `https://rpc.rabdi.db-chain.testnet.arkiv.network`.
+Never put an access key or a keyed RPC URL in a wallet. Get
 [test GLM](https://hub.arkiv.network/faucet). Never provide a private key to the sample.
 
 For application writes, use SDK 1.0's `createEntity(schema, values, options, txParams)`:

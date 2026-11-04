@@ -44,7 +44,8 @@ authorized Lifetime Extension. Do not offer an unlimited lifetime option.
 ## Sample and security
 
 Read sample/AGENTS.md before sample changes. Only connect on click. Wallet writes use
-the user's configured Rabdi RPC; reads use the application's bounded server proxy.
+the user's wallet; offer it only the keyless public Rabdi RPC
+https://rpc.rabdi.db-chain.testnet.arkiv.network. Reads use the bounded server proxy.
 Access keys stay server-side as ARKIV_ACCESS_KEY. Free keys: https://hub.arkiv.network/access-keys;
 test GLM: https://hub.arkiv.network/faucet. Never request private keys or wallet secrets.
 Never persist or upload user schemas or rows. Render identifiers as text.

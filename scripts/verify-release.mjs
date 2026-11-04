@@ -33,7 +33,7 @@ if (built && (registry || run('pack', ['pack', '--pack-destination', archiveDir]
   run('sample-lock', ['install', archive, '--ignore-scripts', '--no-audit', '--no-fund'], sampleDir);
   if (run('sample-install', ['ci', '--no-audit', '--no-fund'], sampleDir)) {
     run('sample-build', ['run', 'build'], sampleDir);
-    const sampleTest = spawnSync(process.execPath, ['--experimental-strip-types', '--test', 'scripts/row.test.ts', 'scripts/query-guide.test.ts', 'scripts/write-policy.test.ts', 'scripts/write-operation.test.ts', 'scripts/model-handoff.test.ts'], { cwd: sampleDir, encoding: 'utf8' });
+    const sampleTest = spawnSync(process.execPath, ['--experimental-strip-types', '--test', 'scripts/row.test.ts', 'scripts/query-guide.test.ts', 'scripts/write-policy.test.ts', 'scripts/write-operation.test.ts', 'scripts/model-handoff.test.ts', 'scripts/rabdi-switch.test.ts'], { cwd: sampleDir, encoding: 'utf8' });
     writeFileSync('release-evidence/sample-tests.log', (sampleTest.stdout ?? '') + (sampleTest.stderr ?? ''));
     checks.push({ name: 'sample-tests', code: sampleTest.status });
     console.log('sample-tests: ' + (sampleTest.status === 0 ? 'PASS' : 'FAIL'));

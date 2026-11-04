@@ -10,6 +10,7 @@ import { defaultFlags, type DemoFlags } from './creation-flags';
 import { renderRowPreview } from './row-preview';
 import { sendWithPolicy, WritePolicyError } from './write-policy';
 import { executeWrite, reconcileWrite, newWriteOperation, operationKey, type WriteOperation, type Hash } from './write-operation';
+import { switchToRabdi } from './rabdi-switch';
 
 type Provider=EIP1193Provider & {on?:(event:string,callback:(...args:unknown[])=>void)=>void};
 const rpc=createPublicClient({chain:rabdi,transport:http('/api/rpc',{timeout:15000,retryCount:1})});
@@ -101,8 +102,8 @@ export function initDeployment(){
  async function ensureNetwork(p:Provider){
    const current=await p.request({method:'eth_chainId'});
    if(BigInt(current)!==BigInt(rabdi.id)){
-    try{await p.request({method:'wallet_switchEthereumChain',params:[{chainId:chainHex}]});}
-    catch(error){if((error as {code?:number}).code!==4902)throw error;throw Error('Add Rabdi (chain 7794095) in your wallet using your own access key from hub.arkiv.network/access-keys, then connect again.');}
+    // A wallet without Rabdi is offered only the keyless public RPC; access keys never reach the wallet.
+    await switchToRabdi(p,rabdi.id);
    }
    if(BigInt(await p.request({method:'eth_chainId'}))!==BigInt(rabdi.id))throw Error('Select Rabdi in your wallet.');
    if(await rpc.getChainId()!==rabdi.id)throw Error('RPC network mismatch.');

@@ -11,7 +11,9 @@ Owner options: Connected wallet permits deployment; Another wallet is example-on
 Require bounded future datetime-local expiration within format /3's own lifetime
 policy (max 7,883,970 nominal blocks), kept for compatibility. This is not a Rabdi
 requirement and differs from the SDK/chain maximum of 7,884,000 blocks.
-Only connect on click. Use the user's wallet-configured RPC; never request a private key.
+Only connect on click; never request a private key. Offer a wallet only the keyless public
+Rabdi RPC, and only through src/rabdi-switch.ts. Do not put "wallet" in a source file
+name: .vercelignore excludes **/*wallet* from deployments.
 Server access keys belong only in ARKIV_ACCESS_KEY, not the client or NEXT_PUBLIC variables.
 
 Keep schemas/rows local and in memory. Illustrations never enter model exports or writes.
