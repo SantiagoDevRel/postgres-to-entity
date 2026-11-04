@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.3
+
+- Documentation only; converter, CLI and model output are unchanged.
+- README and AGENTS: the sample's wallet writes go through the user's wallet, which gets only the keyless public Rabdi RPC `https://rpc.rabdi.db-chain.testnet.arkiv.network`; an access key never goes into a wallet. The README links the Hub access-keys page for the sample server's `ARKIV_ACCESS_KEY` again.
+- The release tag carries the sample fix that adds Rabdi to wallets with the keyless RPC only (PR #16).
+
 ## 1.0.2
 
 - Verify the SDK ^1.0.0 peer range with 1.0.1; update exact development and consumer SDK pins and current guidance.
