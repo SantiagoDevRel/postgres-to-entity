@@ -75,6 +75,22 @@ for (const [name, error] of [
   });
 }
 
+test('only 4902 and MetaMask Mobile wrapped 4902 count as an unknown chain', async () => {
+  const { isUnknownChainError } = await import('../src/rabdi-switch.ts');
+  const internal = 'Internal JSON-RPC error.';
+  for (const error of [
+    { code: 4902 },
+    { code: -32603, message: internal, data: { originalError: { code: 4902 } } },
+    { code: -32603, message: internal, originalError: { code: 4902 } },
+    { code: -32603, message: 'Unrecognized chain ID "0x76edaf". Try adding the chain using wallet_addEthereumChain first.' },
+  ]) assert.equal(isUnknownChainError(error), true, JSON.stringify(error));
+  for (const error of [
+    undefined, null, 'Unrecognized chain ID', { code: -32603, message: internal }, { code: -32603 },
+    { code: -32603, message: internal, data: { originalError: { code: 4001 } } }, { code: -32603, message: internal, data: null },
+    { code: 4001, message: 'Unrecognized chain ID' }, { code: -32002 }, { code: '4902' },
+  ]) assert.equal(isUnknownChainError(error), false, JSON.stringify(error));
+});
+
 test('the sample never tells users to put an access key in their wallet', () => {
   // The package docs (../../README.md, ../../AGENTS.md) are checked by scripts/lint.mjs: release checks run this file in a copy without them.
   const [html, deployment, network, readme, agents] = ['../index.html', '../src/deployment.ts', '../src/network.ts', '../README.md', '../AGENTS.md'].map(read);
