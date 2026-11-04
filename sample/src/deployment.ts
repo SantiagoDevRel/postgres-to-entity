@@ -10,7 +10,7 @@ import { defaultFlags, type DemoFlags } from './creation-flags';
 import { renderRowPreview } from './row-preview';
 import { sendWithPolicy, WritePolicyError } from './write-policy';
 import { executeWrite, reconcileWrite, newWriteOperation, operationKey, type WriteOperation, type Hash } from './write-operation';
-import { switchToRabdi } from './wallet-network';
+import { switchToRabdi } from './rabdi-switch';
 
 type Provider=EIP1193Provider & {on?:(event:string,callback:(...args:unknown[])=>void)=>void};
 const rpc=createPublicClient({chain:rabdi,transport:http('/api/rpc',{timeout:15000,retryCount:1})});

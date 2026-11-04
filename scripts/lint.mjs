@@ -11,5 +11,8 @@ for (const file of [...guidance, ...source]) {
   if (brand) throw new Error(file + ': ' + brand);
   if (/Tiramisu|7738577|0\.8\.[\dx]|arkiv-entity-model\/2|jsonToPay[l]oad/.test(text)) throw new Error(file + ': earlier network or model guidance');
   if (text.split('\n').some(line => /[\t ]+$/.test(line))) throw new Error(file + ': trailing whitespace');
+  // Wallets get only the keyless public Rabdi RPC; an access key never goes into a wallet.
+  if (/own access key|user's configured (Rabdi )?RPC|rpc\.rabdi\.db-chain\.testnet\.arkiv\.network\/(?![`'"\s)])/i.test(text)) throw new Error(file + ': wallet access-key or keyed RPC guidance');
 }
+for (const file of ['README.md', 'AGENTS.md']) if (!/https:\/\/rpc\.rabdi\.db-chain\.testnet\.arkiv\.network(?![\w/])/.test(readFileSync(file, 'utf8'))) throw new Error(file + ': name the keyless public Rabdi RPC for wallets');
 console.log('Current guidance, source vocabulary and whitespace checks passed.');

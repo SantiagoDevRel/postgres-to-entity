@@ -42,7 +42,7 @@ and owner. Neither endpoint returns an access key or upstream transport error.
 
 Wallet writes go through the user's wallet. If the wallet does not know Rabdi, the
 sample adds it with the keyless public RPC https://rpc.rabdi.db-chain.testnet.arkiv.network
-(src/wallet-network.ts). An access key is only for the server's ARKIV_ACCESS_KEY: never
+(src/rabdi-switch.ts). An access key is only for the server's ARKIV_ACCESS_KEY: never
 put it in a wallet, the bundle, a URL or a QR. If your wallet already has Rabdi with a
 keyed RPC URL, edit that network to the keyless URL. Get test GLM at
 https://hub.arkiv.network/faucet. Never provide private keys to the browser.
