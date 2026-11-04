@@ -1,7 +1,7 @@
 import { defineChain } from 'viem';
 
-// Browser reads use this application's bounded, read-only proxy. Wallet writes use
-// the Rabdi RPC already configured by the user in their wallet.
+// Browser reads use this application's bounded, read-only proxy. Wallet writes go
+// through the user's wallet; if it lacks Rabdi, wallet-network.ts adds the keyless public RPC.
 export const rabdiBrowser = defineChain({
   id: 7794095,
   name: 'Rabdi',
