@@ -1,8 +1,8 @@
 Edit instructions only in AGENTS.md; CLAUDE.md only imports this file.
 
-# AGENTS.md - postgres-to-entity 1.0.3
+# AGENTS.md - postgres-to-entity 1.0.4
 
-Install `npm install --save-exact postgres-to-entity@1.0.3 @arkiv-network/sdk@1.0.1 viem`.
+Install `npm install --save-exact postgres-to-entity@1.0.4 @arkiv-network/sdk@1.0.1 viem`.
 
 ## Purpose
 
